@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -41,7 +42,19 @@ func NewAgentLoop(b *bus.MessageBus, provider providers.LLMProvider, model strin
 	reg := tools.NewRegistry()
 	// register default tools
 	reg.Register(tools.NewMessageTool(b))
-	reg.Register(tools.NewFilesystemTool(workspace))
+
+	// Open an os.Root anchored at the workspace for kernel-enforced sandboxing.
+	root, err := os.OpenRoot(workspace)
+	if err != nil {
+		log.Fatalf("failed to open workspace root %q: %v", workspace, err)
+	}
+
+	fsTool, err := tools.NewFilesystemTool(workspace)
+	if err != nil {
+		log.Fatalf("failed to create filesystem tool: %v", err)
+	}
+	reg.Register(fsTool)
+
 	reg.Register(tools.NewExecTool(60))
 	reg.Register(tools.NewWebTool())
 	reg.Register(tools.NewSpawnTool())
@@ -55,8 +68,8 @@ func NewAgentLoop(b *bus.MessageBus, provider providers.LLMProvider, model strin
 	// register memory tool (needs store instance)
 	reg.Register(tools.NewWriteMemoryTool(mem))
 
-	// register skill management tools
-	skillMgr := tools.NewSkillManager(workspace)
+	// register skill management tools (share the same os.Root)
+	skillMgr := tools.NewSkillManager(root)
 	reg.Register(tools.NewCreateSkillTool(skillMgr))
 	reg.Register(tools.NewListSkillsTool(skillMgr))
 	reg.Register(tools.NewReadSkillTool(skillMgr))

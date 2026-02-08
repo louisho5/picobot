@@ -3,13 +3,23 @@ package tools
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
-func TestSkillManager_CreateSkill(t *testing.T) {
+func openTestRoot(t *testing.T) *os.Root {
+	t.Helper()
 	tmpDir := t.TempDir()
-	mgr := NewSkillManager(tmpDir)
+	root, err := os.OpenRoot(tmpDir)
+	if err != nil {
+		t.Fatalf("OpenRoot failed: %v", err)
+	}
+	t.Cleanup(func() { root.Close() })
+	return root
+}
+
+func TestSkillManager_CreateSkill(t *testing.T) {
+	root := openTestRoot(t)
+	mgr := NewSkillManager(root)
 
 	err := mgr.CreateSkill("test-skill", "Test description", "# Test\n\nTest content")
 	if err != nil {
@@ -17,8 +27,7 @@ func TestSkillManager_CreateSkill(t *testing.T) {
 	}
 
 	// Verify file was created
-	skillPath := filepath.Join(tmpDir, "skills", "test-skill", "SKILL.md")
-	content, err := os.ReadFile(skillPath)
+	content, err := root.ReadFile("skills/test-skill/SKILL.md")
 	if err != nil {
 		t.Fatalf("Failed to read created skill: %v", err)
 	}
@@ -33,8 +42,8 @@ func TestSkillManager_CreateSkill(t *testing.T) {
 }
 
 func TestSkillManager_ListSkills(t *testing.T) {
-	tmpDir := t.TempDir()
-	mgr := NewSkillManager(tmpDir)
+	root := openTestRoot(t)
+	mgr := NewSkillManager(root)
 
 	// Create test skills
 	mgr.CreateSkill("skill1", "Description 1", "Content 1")
@@ -51,8 +60,8 @@ func TestSkillManager_ListSkills(t *testing.T) {
 }
 
 func TestSkillManager_GetSkill(t *testing.T) {
-	tmpDir := t.TempDir()
-	mgr := NewSkillManager(tmpDir)
+	root := openTestRoot(t)
+	mgr := NewSkillManager(root)
 
 	mgr.CreateSkill("test-skill", "Test description", "# Test\n\nTest content")
 
@@ -67,8 +76,8 @@ func TestSkillManager_GetSkill(t *testing.T) {
 }
 
 func TestSkillManager_DeleteSkill(t *testing.T) {
-	tmpDir := t.TempDir()
-	mgr := NewSkillManager(tmpDir)
+	root := openTestRoot(t)
+	mgr := NewSkillManager(root)
 
 	mgr.CreateSkill("test-skill", "Test description", "Content")
 
@@ -78,15 +87,15 @@ func TestSkillManager_DeleteSkill(t *testing.T) {
 	}
 
 	// Verify skill is gone
-	skillPath := filepath.Join(tmpDir, "skills", "test-skill")
-	if _, err := os.Stat(skillPath); !os.IsNotExist(err) {
+	_, err = root.Stat("skills/test-skill")
+	if !os.IsNotExist(err) {
 		t.Error("Skill directory still exists after deletion")
 	}
 }
 
 func TestCreateSkillTool_Execute(t *testing.T) {
-	tmpDir := t.TempDir()
-	mgr := NewSkillManager(tmpDir)
+	root := openTestRoot(t)
+	mgr := NewSkillManager(root)
 	tool := NewCreateSkillTool(mgr)
 
 	args := map[string]interface{}{
@@ -105,15 +114,15 @@ func TestCreateSkillTool_Execute(t *testing.T) {
 	}
 
 	// Verify skill was created
-	skillPath := filepath.Join(tmpDir, "skills", "test-skill", "SKILL.md")
-	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
+	_, err = root.Stat("skills/test-skill/SKILL.md")
+	if os.IsNotExist(err) {
 		t.Error("Skill file was not created")
 	}
 }
 
 func TestListSkillsTool_Execute(t *testing.T) {
-	tmpDir := t.TempDir()
-	mgr := NewSkillManager(tmpDir)
+	root := openTestRoot(t)
+	mgr := NewSkillManager(root)
 	mgr.CreateSkill("skill1", "Description 1", "Content 1")
 	mgr.CreateSkill("skill2", "Description 2", "Content 2")
 
@@ -129,8 +138,8 @@ func TestListSkillsTool_Execute(t *testing.T) {
 }
 
 func TestReadSkillTool_Execute(t *testing.T) {
-	tmpDir := t.TempDir()
-	mgr := NewSkillManager(tmpDir)
+	root := openTestRoot(t)
+	mgr := NewSkillManager(root)
 	mgr.CreateSkill("test-skill", "Test description", "# Test Content")
 
 	tool := NewReadSkillTool(mgr)
@@ -146,8 +155,8 @@ func TestReadSkillTool_Execute(t *testing.T) {
 }
 
 func TestDeleteSkillTool_Execute(t *testing.T) {
-	tmpDir := t.TempDir()
-	mgr := NewSkillManager(tmpDir)
+	root := openTestRoot(t)
+	mgr := NewSkillManager(root)
 	mgr.CreateSkill("test-skill", "Test description", "Content")
 
 	tool := NewDeleteSkillTool(mgr)
@@ -162,8 +171,8 @@ func TestDeleteSkillTool_Execute(t *testing.T) {
 	}
 
 	// Verify skill is gone
-	skillPath := filepath.Join(tmpDir, "skills", "test-skill")
-	if _, err := os.Stat(skillPath); !os.IsNotExist(err) {
+	_, err = root.Stat("skills/test-skill")
+	if !os.IsNotExist(err) {
 		t.Error("Skill directory still exists after deletion")
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -16,28 +15,29 @@ type SkillMetadata struct {
 }
 
 // SkillManager provides tools for managing skills in the workspace.
+// All file operations are sandboxed via os.Root (Go 1.24+).
 type SkillManager struct {
-	workspacePath string
+	root *os.Root // rooted at the workspace directory
 }
 
-// NewSkillManager creates a new skill manager.
-func NewSkillManager(workspacePath string) *SkillManager {
-	return &SkillManager{workspacePath: workspacePath}
-}
-
-// SkillsPath returns the path to the skills directory.
-func (sm *SkillManager) SkillsPath() string {
-	return filepath.Join(sm.workspacePath, "skills")
+// NewSkillManager creates a new skill manager backed by an os.Root.
+func NewSkillManager(root *os.Root) *SkillManager {
+	return &SkillManager{root: root}
 }
 
 // ListSkills returns a list of all skills in the skills directory.
 func (sm *SkillManager) ListSkills() ([]SkillMetadata, error) {
-	skillsPath := sm.SkillsPath()
-	entries, err := os.ReadDir(skillsPath)
+	f, err := sm.root.Open("skills")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []SkillMetadata{}, nil
 		}
+		return nil, err
+	}
+	defer f.Close()
+
+	entries, err := f.ReadDir(-1)
+	if err != nil {
 		return nil, err
 	}
 
@@ -46,9 +46,9 @@ func (sm *SkillManager) ListSkills() ([]SkillMetadata, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		skillPath := filepath.Join(skillsPath, entry.Name(), "SKILL.md")
-		if _, err := os.Stat(skillPath); err == nil {
-			meta, err := sm.parseSkillMetadata(skillPath)
+		skillFile := "skills/" + entry.Name() + "/SKILL.md"
+		if _, err := sm.root.Stat(skillFile); err == nil {
+			meta, err := sm.parseSkillMetadata(skillFile)
 			if err != nil {
 				// skip invalid skills
 				continue
@@ -61,8 +61,7 @@ func (sm *SkillManager) ListSkills() ([]SkillMetadata, error) {
 
 // GetSkill reads a skill's content by name.
 func (sm *SkillManager) GetSkill(name string) (string, error) {
-	skillPath := filepath.Join(sm.SkillsPath(), name, "SKILL.md")
-	content, err := os.ReadFile(skillPath)
+	content, err := sm.root.ReadFile("skills/" + name + "/SKILL.md")
 	if err != nil {
 		return "", err
 	}
@@ -70,18 +69,15 @@ func (sm *SkillManager) GetSkill(name string) (string, error) {
 }
 
 // CreateSkill creates a new skill with the given name and content.
+// Path traversal is prevented by os.Root at the kernel level.
 func (sm *SkillManager) CreateSkill(name, description, content string) error {
 	if name == "" {
 		return fmt.Errorf("skill name is required")
 	}
-	// sanitize name (no special chars, no path separators)
 	name = strings.TrimSpace(name)
-	if strings.Contains(name, "/") || strings.Contains(name, "..") {
-		return fmt.Errorf("invalid skill name: %s", name)
-	}
 
-	skillDir := filepath.Join(sm.SkillsPath(), name)
-	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+	skillDir := "skills/" + name
+	if err := sm.root.MkdirAll(skillDir, 0o755); err != nil {
 		return err
 	}
 
@@ -89,19 +85,17 @@ func (sm *SkillManager) CreateSkill(name, description, content string) error {
 	frontmatter := fmt.Sprintf("---\nname: %s\ndescription: %s\n---\n\n", name, description)
 	fullContent := frontmatter + content
 
-	skillPath := filepath.Join(skillDir, "SKILL.md")
-	return os.WriteFile(skillPath, []byte(fullContent), 0o644)
+	return sm.root.WriteFile(skillDir+"/SKILL.md", []byte(fullContent), 0o644)
 }
 
 // DeleteSkill removes a skill directory.
 func (sm *SkillManager) DeleteSkill(name string) error {
-	skillDir := filepath.Join(sm.SkillsPath(), name)
-	return os.RemoveAll(skillDir)
+	return sm.root.RemoveAll("skills/" + name)
 }
 
 // parseSkillMetadata extracts metadata from SKILL.md frontmatter.
 func (sm *SkillManager) parseSkillMetadata(skillPath string) (SkillMetadata, error) {
-	content, err := os.ReadFile(skillPath)
+	content, err := sm.root.ReadFile(skillPath)
 	if err != nil {
 		return SkillMetadata{}, err
 	}

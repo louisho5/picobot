@@ -5,20 +5,33 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // FilesystemTool provides read/write/list operations within the filesystem.
-// Args:
-// - action: "read" | "write" | "list"
-// - path: path to file or directory (relative to workspace)
-// - content: for write
+// All operations are sandboxed to the workspace directory using os.Root (Go 1.24+),
+// which provides kernel-enforced path containment via openat() syscalls.
+// This prevents symlink escapes, TOCTOU races, and path traversal attacks.
 type FilesystemTool struct {
-	workspaceDir string
+	root *os.Root
 }
 
-func NewFilesystemTool(workspaceDir string) *FilesystemTool {
-	return &FilesystemTool{workspaceDir: workspaceDir}
+// NewFilesystemTool opens an os.Root anchored at workspaceDir.
+// The caller should call Close() when done (e.g. via defer).
+func NewFilesystemTool(workspaceDir string) (*FilesystemTool, error) {
+	absDir, err := filepath.Abs(workspaceDir)
+	if err != nil {
+		return nil, fmt.Errorf("filesystem: resolve workspace path: %w", err)
+	}
+	root, err := os.OpenRoot(absDir)
+	if err != nil {
+		return nil, fmt.Errorf("filesystem: open workspace root: %w", err)
+	}
+	return &FilesystemTool{root: root}, nil
+}
+
+// Close releases the underlying os.Root file descriptor.
+func (t *FilesystemTool) Close() error {
+	return t.root.Close()
 }
 
 func (t *FilesystemTool) Name() string        { return "filesystem" }
@@ -46,34 +59,6 @@ func (t *FilesystemTool) Parameters() map[string]interface{} {
 	}
 }
 
-// resolvePath resolves a path relative to the workspace directory and ensures
-// it stays within the workspace boundary.
-func (t *FilesystemTool) resolvePath(pathStr string) (string, error) {
-	if pathStr == "" {
-		return t.workspaceDir, nil
-	}
-	// Join relative paths with workspace dir; absolute paths are used as-is
-	var resolved string
-	if filepath.IsAbs(pathStr) {
-		resolved = filepath.Clean(pathStr)
-	} else {
-		resolved = filepath.Join(t.workspaceDir, pathStr)
-	}
-	// Security: ensure the resolved path is within the workspace
-	absResolved, err := filepath.Abs(resolved)
-	if err != nil {
-		return "", err
-	}
-	absBase, err := filepath.Abs(t.workspaceDir)
-	if err != nil {
-		return "", err
-	}
-	if !strings.HasPrefix(absResolved, absBase) {
-		return "", fmt.Errorf("filesystem: path outside workspace not allowed")
-	}
-	return absResolved, nil
-}
-
 func (t *FilesystemTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	actionRaw, ok := args["action"]
 	if !ok {
@@ -93,13 +78,13 @@ func (t *FilesystemTool) Execute(ctx context.Context, args map[string]interface{
 			return "", fmt.Errorf("filesystem: 'path' must be a string")
 		}
 	}
-	resolved, err := t.resolvePath(pathStr)
-	if err != nil {
-		return "", err
+	if pathStr == "" {
+		pathStr = "."
 	}
+
 	switch action {
 	case "read":
-		b, err := os.ReadFile(resolved)
+		b, err := t.root.ReadFile(pathStr)
 		if err != nil {
 			return "", err
 		}
@@ -114,16 +99,23 @@ func (t *FilesystemTool) Execute(ctx context.Context, args map[string]interface{
 			return "", fmt.Errorf("filesystem: 'content' must be a string")
 		}
 		// Create parent directories if needed
-		dir := filepath.Dir(resolved)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return "", err
+		dir := filepath.Dir(pathStr)
+		if dir != "." {
+			if err := t.root.MkdirAll(dir, 0o755); err != nil {
+				return "", err
+			}
 		}
-		if err := os.WriteFile(resolved, []byte(content), 0o644); err != nil {
+		if err := t.root.WriteFile(pathStr, []byte(content), 0o644); err != nil {
 			return "", err
 		}
 		return "written", nil
 	case "list":
-		entries, err := os.ReadDir(resolved)
+		f, err := t.root.Open(pathStr)
+		if err != nil {
+			return "", err
+		}
+		defer f.Close()
+		entries, err := f.ReadDir(-1)
 		if err != nil {
 			return "", err
 		}
