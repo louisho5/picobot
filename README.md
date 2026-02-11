@@ -1,3 +1,4 @@
+BCDE
 <p align="center">
   <img src="logo.png" alt="Picobot" width="250" height="150">
   <h1 align="center">Picobot</h1>
