@@ -8,6 +8,7 @@
     <img src="https://img.shields.io/badge/built_with-Go-00ADD8?logo=go" alt="Go">
     <img src="https://img.shields.io/badge/RAM-~20MB-orange" alt="Memory Usage">
     <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License">
+    <img src="https://github.com/louisho5/picobot/actions/workflows/docker-publish.yml/badge.svg" alt="Workflow">
   </p>
 </p>
 
