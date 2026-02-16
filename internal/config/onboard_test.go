@@ -68,3 +68,53 @@ func TestSaveAndLoadConfig(t *testing.T) {
 		t.Fatalf("expected default OpenAI API base, got %q", parsed.Providers.OpenAI.APIBase)
 	}
 }
+
+func TestDefaultConfigHasMCPExample(t *testing.T) {
+	cfg := DefaultConfig()
+	if len(cfg.MCP.Servers) == 0 {
+		t.Error("DefaultConfig should have at least one example MCP server")
+	}
+
+	example, ok := cfg.MCP.Servers["example"]
+	if !ok {
+		t.Error("DefaultConfig should have an 'example' MCP server")
+	}
+
+	if example.Command != "npx" {
+		t.Errorf("Example server command should be 'npx', got %s", example.Command)
+	}
+
+	if len(example.Args) == 0 {
+		t.Error("Example server should have args")
+	}
+
+	// Test JSON marshaling
+	b, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal config: %v", err)
+	}
+
+	jsonStr := string(b)
+	if !contains(jsonStr, "mcp") {
+		t.Error("JSON should contain 'mcp' field")
+	}
+
+	if !contains(jsonStr, "example") {
+		t.Error("JSON should contain 'example' server")
+	}
+
+	t.Logf("Generated config:\n%s", jsonStr)
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsInternal(s, substr))
+}
+
+func containsInternal(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

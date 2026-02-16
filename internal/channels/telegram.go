@@ -9,10 +9,44 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/local/picobot/internal/chat"
 )
+
+// typingIndicatorClient is shared for sending typing indicators.
+var (
+	typingClient     *http.Client
+	typingClientOnce sync.Once
+)
+
+func getTypingClient() *http.Client {
+	typingClientOnce.Do(func() {
+		typingClient = &http.Client{Timeout: 5 * time.Second}
+	})
+	return typingClient
+}
+
+// SendTypingIndicator sends a "typing" chat action to the given chat.
+// This should be called periodically (every ~5 seconds) while processing.
+func SendTypingIndicator(token, chatID string) {
+	if token == "" || chatID == "" {
+		return
+	}
+	base := "https://api.telegram.org/bot" + token
+	u := base + "/sendChatAction"
+	v := url.Values{}
+	v.Set("chat_id", chatID)
+	v.Set("action", "typing")
+	resp, err := getTypingClient().PostForm(u, v)
+	if err != nil {
+		// Silently ignore errors - typing indicator is non-critical
+		return
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+}
 
 // StartTelegram is a convenience wrapper that uses the real polling implementation
 // with the standard Telegram base URL.

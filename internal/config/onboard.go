@@ -20,10 +20,23 @@ func DefaultConfig() Config {
 			Temperature:        0.7,
 			MaxToolIterations:  100,
 			HeartbeatIntervalS: 60,
+			StripThinkTags:     false,               // Set to true to strip <think>...</think> from reasoning models
+			ThinkTagRegex:      "(?s)<think[^>]*>.*?</think>", // Regex pattern for stripping think tags
 		}},
 		Channels: ChannelsConfig{Telegram: TelegramConfig{Enabled: false, Token: "", AllowFrom: []string{}}},
 		Providers: ProvidersConfig{
 			OpenAI: &ProviderConfig{APIKey: "sk-or-v1-REPLACE_ME", APIBase: "https://openrouter.ai/api/v1"},
+		},
+		MCP: MCPConfig{
+			Servers: map[string]MCPServerConfig{
+				"example": {
+					Command:  "npx",
+					Args:     []string{"-y", "@modelcontextprotocol/server-example"},
+					Env:      map[string]string{},
+					Enabled:  false, // Set to true to enable this MCP server
+					LogUsage: false, // Set to true to log tool executions to console
+				},
+			},
 		},
 	}
 }

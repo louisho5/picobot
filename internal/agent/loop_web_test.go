@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/local/picobot/internal/chat"
+	"github.com/local/picobot/internal/config"
 	"github.com/local/picobot/internal/providers"
 )
 
@@ -52,7 +53,7 @@ func TestAgentExecutesWebToolCall(t *testing.T) {
 
 	b := chat.NewHub(10)
 	p := &webCallingProvider{server: h.URL}
-	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 5, "", nil)
+	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 5, "", nil, config.MCPConfig{}, false, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

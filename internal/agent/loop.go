@@ -11,28 +11,44 @@ import (
 	"github.com/local/picobot/internal/agent/memory"
 	"github.com/local/picobot/internal/agent/tools"
 	"github.com/local/picobot/internal/chat"
+	"github.com/local/picobot/internal/config"
 	"github.com/local/picobot/internal/cron"
+	"github.com/local/picobot/internal/mcp"
 	"github.com/local/picobot/internal/providers"
 	"github.com/local/picobot/internal/session"
 )
 
-var rememberRE = regexp.MustCompile(`(?i)^remember(?:\s+to)?\s+(.+)$`)
+var (
+	rememberRE = regexp.MustCompile(`(?i)^remember(?:\s+to)?\s+(.+)$`)
+	defaultThinkRE = regexp.MustCompile(`(?s)<think[^>]*>.*?</think>`) // (?s) makes . match newlines
+)
+
+// sanitizeContent removes <think>...</think> blocks from model responses if enabled.
+func (a *AgentLoop) sanitizeContent(content string) string {
+	if !a.stripThinkTags {
+		return content
+	}
+	return a.thinkTagRegex.ReplaceAllString(content, "")
+}
 
 // AgentLoop is the core processing loop; it holds an LLM provider, tools, sessions and context builder.
 type AgentLoop struct {
-	hub           *chat.Hub
-	provider      providers.LLMProvider
-	tools         *tools.Registry
-	sessions      *session.SessionManager
-	context       *ContextBuilder
-	memory        *memory.MemoryStore
-	model         string
-	maxIterations int
-	running       bool
+	hub            *chat.Hub
+	provider       providers.LLMProvider
+	tools          *tools.Registry
+	sessions       *session.SessionManager
+	context        *ContextBuilder
+	memory         *memory.MemoryStore
+	model          string
+	maxIterations  int
+	running        bool
+	mcpManager     *mcp.Manager
+	stripThinkTags bool           // Strip <think>...</think> blocks from responses
+	thinkTagRegex  *regexp.Regexp // Regex for stripping think tags
 }
 
 // NewAgentLoop creates a new AgentLoop with the given provider.
-func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, maxIterations int, workspace string, scheduler *cron.Scheduler) *AgentLoop {
+func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, maxIterations int, workspace string, scheduler *cron.Scheduler, mcpCfg config.MCPConfig, stripThinkTags bool, thinkTagRegex string) *AgentLoop {
 	if model == "" {
 		model = provider.GetDefaultModel()
 	}
@@ -75,13 +91,45 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 	reg.Register(tools.NewReadSkillTool(skillMgr))
 	reg.Register(tools.NewDeleteSkillTool(skillMgr))
 
-	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations}
+	// Initialize MCP manager and register MCP tools
+	var mcpManager *mcp.Manager
+	if len(mcpCfg.Servers) > 0 {
+		mcpManager = mcp.NewManager()
+		if err := mcpManager.InitializeServers(mcpCfg); err != nil {
+			log.Printf("Failed to initialize MCP servers: %v", err)
+		} else {
+			mcpAdapter := tools.NewMCPToolAdapter(mcpManager)
+			mcpAdapter.RegisterMCPTools(reg)
+		}
+	}
+
+	// Compile custom regex if provided, otherwise use default
+	var thinkRE *regexp.Regexp
+	if thinkTagRegex != "" {
+		var err error
+		thinkRE, err = regexp.Compile(thinkTagRegex)
+		if err != nil {
+			log.Printf("[WARN] Invalid thinkTagRegex %q, using default: %v", thinkTagRegex, err)
+			thinkRE = defaultThinkRE
+		}
+	} else {
+		thinkRE = defaultThinkRE
+	}
+
+	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations, mcpManager: mcpManager, stripThinkTags: stripThinkTags, thinkTagRegex: thinkRE}
 }
 
 // Run starts processing inbound messages. This is a blocking call until context is canceled.
 func (a *AgentLoop) Run(ctx context.Context) {
 	a.running = true
 	log.Println("Agent loop started")
+
+	// Ensure MCP connections are cleaned up on exit
+	defer func() {
+		if a.mcpManager != nil {
+			a.mcpManager.Close()
+		}
+	}()
 
 	for a.running {
 		select {
@@ -144,9 +192,11 @@ func (a *AgentLoop) Run(ctx context.Context) {
 			finalContent := ""
 			lastToolResult := ""
 			toolDefs := a.tools.Definitions()
+
 			for iteration < a.maxIterations {
 				iteration++
 				resp, err := a.provider.Chat(ctx, messages, toolDefs, a.model)
+
 				if err != nil {
 					log.Printf("provider error: %v", err)
 					finalContent = "Sorry, I encountered an error while processing your request."
@@ -165,10 +215,10 @@ func (a *AgentLoop) Run(ctx context.Context) {
 						lastToolResult = res
 						messages = append(messages, providers.Message{Role: "tool", Content: res, ToolCallID: tc.ID})
 					}
-					// loop again
+					// loop again - typing indicator continues running
 					continue
 				} else {
-					finalContent = resp.Content
+					finalContent = a.sanitizeContent(resp.Content)
 					break
 				}
 			}
@@ -219,12 +269,12 @@ func (a *AgentLoop) ProcessDirect(content string, timeout time.Duration) (string
 		if !resp.HasToolCalls {
 			// No tool calls, return the response (fall back to last tool result if empty)
 			if resp.Content != "" {
-				return resp.Content, nil
+				return a.sanitizeContent(resp.Content), nil
 			}
 			if lastToolResult != "" {
 				return lastToolResult, nil
 			}
-			return resp.Content, nil
+			return a.sanitizeContent(resp.Content), nil
 		}
 
 		// Execute tool calls

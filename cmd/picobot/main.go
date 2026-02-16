@@ -17,11 +17,13 @@ import (
 
 	"github.com/local/picobot/internal/agent"
 	"github.com/local/picobot/internal/agent/memory"
+	"github.com/local/picobot/internal/agent/tools"
 	"github.com/local/picobot/internal/channels"
 	"github.com/local/picobot/internal/chat"
 	"github.com/local/picobot/internal/config"
 	"github.com/local/picobot/internal/cron"
 	"github.com/local/picobot/internal/heartbeat"
+	"github.com/local/picobot/internal/mcp"
 	"github.com/local/picobot/internal/providers"
 )
 
@@ -83,7 +85,7 @@ func NewRootCmd() *cobra.Command {
 				model = provider.GetDefaultModel()
 			}
 
-			ag := agent.NewAgentLoop(hub, provider, model, 5, cfg.Agents.Defaults.Workspace, nil)
+			ag := agent.NewAgentLoop(hub, provider, model, 5, cfg.Agents.Defaults.Workspace, nil, cfg.MCP, cfg.Agents.Defaults.StripThinkTags, cfg.Agents.Defaults.ThinkTagRegex)
 
 			resp, err := ag.ProcessDirect(msg, 60*time.Second)
 			if err != nil {
@@ -126,7 +128,7 @@ func NewRootCmd() *cobra.Command {
 				}
 			})
 
-			ag := agent.NewAgentLoop(hub, provider, model, 20, cfg.Agents.Defaults.Workspace, scheduler)
+			ag := agent.NewAgentLoop(hub, provider, model, 20, cfg.Agents.Defaults.Workspace, scheduler, cfg.MCP, cfg.Agents.Defaults.StripThinkTags, cfg.Agents.Defaults.ThinkTagRegex)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
@@ -160,6 +162,79 @@ func NewRootCmd() *cobra.Command {
 	}
 	gatewayCmd.Flags().StringP("model", "M", "", "Model to use (overrides config/provider default)")
 	rootCmd.AddCommand(gatewayCmd)
+
+	// tools command: list all registered tools
+	toolsCmd := &cobra.Command{
+		Use:   "tools",
+		Short: "List all available tools",
+		Run: func(cmd *cobra.Command, args []string) {
+			mcpOnly, _ := cmd.Flags().GetBool("mcp")
+			cfg, _ := config.LoadConfig()
+			ws := cfg.Agents.Defaults.Workspace
+			if ws == "" {
+				ws = "~/.picobot/workspace"
+			}
+			home, _ := os.UserHomeDir()
+			if strings.HasPrefix(ws, "~/") {
+				ws = filepath.Join(home, ws[2:])
+			}
+
+			// Create minimal registry to list tools
+			reg := tools.NewRegistry()
+
+			// If --mcp flag, only show MCP tools
+			if !mcpOnly {
+				// Register native tools (same as agent loop)
+				reg.Register(tools.NewMessageTool(nil))
+				fsTool, _ := tools.NewFilesystemTool(ws)
+				reg.Register(fsTool)
+				reg.Register(tools.NewExecTool(60))
+				reg.Register(tools.NewWebTool())
+				reg.Register(tools.NewSpawnTool())
+				reg.Register(tools.NewCronTool(nil))
+
+				// Register memory and skill tools
+				mem := memory.NewMemoryStoreWithWorkspace(ws, 100)
+				reg.Register(tools.NewWriteMemoryTool(mem))
+				root, _ := os.OpenRoot(ws)
+				skillMgr := tools.NewSkillManager(root)
+				reg.Register(tools.NewCreateSkillTool(skillMgr))
+				reg.Register(tools.NewListSkillsTool(skillMgr))
+				reg.Register(tools.NewReadSkillTool(skillMgr))
+				reg.Register(tools.NewDeleteSkillTool(skillMgr))
+			}
+
+			// Register MCP tools if configured
+			if len(cfg.MCP.Servers) > 0 {
+				mcpManager := mcp.NewManager()
+				if err := mcpManager.InitializeServers(cfg.MCP); err != nil {
+					log.Printf("Failed to initialize MCP servers: %v", err)
+				} else {
+					mcpAdapter := tools.NewMCPToolAdapter(mcpManager)
+					mcpAdapter.RegisterMCPTools(reg)
+					defer mcpManager.Close()
+				}
+			}
+
+			// List all tools
+			defs := reg.Definitions()
+			if mcpOnly {
+				fmt.Fprintf(cmd.OutOrStdout(), "MCP tools (%d):\n\n", len(defs))
+			} else {
+				fmt.Fprintf(cmd.OutOrStdout(), "Available tools (%d):\n\n", len(defs))
+			}
+			for _, def := range defs {
+				fmt.Fprintf(cmd.OutOrStdout(), "  • %s\n", def.Name)
+				fmt.Fprintf(cmd.OutOrStdout(), "    %s\n", def.Description)
+				if len(def.Parameters) > 0 {
+					fmt.Fprintln(cmd.OutOrStdout(), "    Parameters: yes")
+				}
+				fmt.Fprintln(cmd.OutOrStdout())
+			}
+		},
+	}
+	toolsCmd.Flags().BoolP("mcp", "m", false, "Show only MCP tools")
+	rootCmd.AddCommand(toolsCmd)
 
 	// memory subcommands: read, append, write, recent
 	memoryCmd := &cobra.Command{

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/local/picobot/internal/chat"
+	"github.com/local/picobot/internal/config"
 	"github.com/local/picobot/internal/providers"
 )
 
@@ -22,7 +23,7 @@ func (f *FailingProvider) GetDefaultModel() string { return "fail" }
 func TestAgentRemembersToday(t *testing.T) {
 	b := chat.NewHub(10)
 	p := &FailingProvider{}
-	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 5, "", nil)
+	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 5, "", nil, config.MCPConfig{}, false, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

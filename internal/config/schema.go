@@ -5,6 +5,21 @@ type Config struct {
 	Agents    AgentsConfig    `json:"agents"`
 	Channels  ChannelsConfig  `json:"channels"`
 	Providers ProvidersConfig `json:"providers"`
+	MCP       MCPConfig       `json:"mcp"`
+}
+
+// MCPConfig holds MCP server configurations.
+type MCPConfig struct {
+	Servers map[string]MCPServerConfig `json:"servers"` // Example server provided by default
+}
+
+// MCPServerConfig defines a single MCP server connection.
+type MCPServerConfig struct {
+	Command  string            `json:"command"`        // e.g., "npx", "uvx", "docker"
+	Args     []string          `json:"args"`           // command arguments
+	Env      map[string]string `json:"env,omitempty"`  // environment variables
+	Enabled  bool              `json:"enabled"`        // whether this server is enabled
+	LogUsage bool              `json:"logUsage"`       // whether to log tool usage to console
 }
 
 type AgentsConfig struct {
@@ -18,6 +33,8 @@ type AgentDefaults struct {
 	Temperature        float64 `json:"temperature"`
 	MaxToolIterations  int     `json:"maxToolIterations"`
 	HeartbeatIntervalS int     `json:"heartbeatIntervalS"`
+	StripThinkTags     bool    `json:"stripThinkTags"`               // Strip <think>...</think> from responses
+	ThinkTagRegex      string  `json:"thinkTagRegex,omitempty"`      // Regex pattern for stripping think tags (default: (?s)<think[^>]*>.*?</think>)
 }
 
 type ChannelsConfig struct {

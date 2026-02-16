@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/local/picobot/internal/chat"
+	"github.com/local/picobot/internal/config"
 	"github.com/local/picobot/internal/providers"
 )
 
@@ -31,7 +32,7 @@ func (f *FakeProvider) GetDefaultModel() string { return "fake" }
 func TestAgentExecutesToolCall(t *testing.T) {
 	b := chat.NewHub(10)
 	p := &FakeProvider{}
-	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 3, "", nil)
+	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 3, "", nil, config.MCPConfig{}, false, "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
