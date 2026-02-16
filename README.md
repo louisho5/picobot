@@ -40,12 +40,15 @@ docker run -d --name picobot \
   -e OPENAI_API_BASE="https://openrouter.ai/api/v1" \
   -e PICOBOT_MODEL="google/gemini-2.5-flash" \
   -e TELEGRAM_BOT_TOKEN="your-telegram-token" \
-  -v ./picobot-data:/home/picobot/.picobot \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
+  -v $HOME/picobot-data:/home/picobot/.picobot \
   --restart unless-stopped \
   louisho5/picobot:latest
 ```
 
-All config, memory, and skills are persisted in `./picobot-data` on your host.
+All config, memory, and skills are persisted in `$HOME/picobot-data` on your host.  
+Prefer a Docker-managed volume instead? `docker volume create picobot-data` and mount it with `-v picobot-data:/home/picobot/.picobot` — no extra permissions needed.
 
 ### Docker Compose
 

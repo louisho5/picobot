@@ -32,7 +32,19 @@ docker run -d \
   -e PICOBOT_MODEL="google/gemini-2.5-flash" \
   -e TELEGRAM_BOT_TOKEN="123456:ABC..." \
   -e TELEGRAM_ALLOW_FROM="8881234567" \
-  -v ./picobot-data:/home/picobot/.picobot \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
+  -v $HOME/picobot-data:/home/picobot/.picobot \
+  picobot
+```
+
+To avoid touching host permissions, let Docker manage persistence:
+
+```sh
+docker volume create picobot-data
+docker run -d --name picobot \
+  -e OPENAI_API_KEY="sk-or-v1-YOUR_KEY" \
+  -v picobot-data:/home/picobot/.picobot \
   picobot
 ```
 
@@ -45,6 +57,8 @@ docker run -d \
 | `PICOBOT_MODEL` | No | `google/gemini-2.5-flash` | LLM model to use |
 | `TELEGRAM_BOT_TOKEN` | No | — | Telegram bot token from @BotFather |
 | `TELEGRAM_ALLOW_FROM` | No | — | Comma-separated Telegram user IDs |
+| `HOST_UID` | No | picobot user UID | Host UID to map onto container user |
+| `HOST_GID` | No | picobot group GID | Host GID to map onto container user |
 
 ## Data Persistence
 
