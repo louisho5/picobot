@@ -139,7 +139,19 @@ docker run --rm -it \
   -e OPENAI_API_BASE="https://openrouter.ai/api/v1" \
   -e PICOBOT_MODEL="google/gemini-2.5-flash" \
   -e TELEGRAM_BOT_TOKEN="your-token" \
-  -v ./picobot-data:/home/picobot/.picobot \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
+  -v $HOME/picobot-data:/home/picobot/.picobot \
+  louisho5/picobot:latest
+```
+
+You can also let Docker manage the persistent state with a named volume:
+
+```sh
+docker volume create picobot-data
+docker run --rm -it \
+  -e OPENAI_API_KEY="your-key" \
+  -v picobot-data:/home/picobot/.picobot \
   louisho5/picobot:latest
 ```
 
@@ -172,6 +184,8 @@ These environment variables configure the Docker container:
 | `PICOBOT_MODEL` | LLM model to use (e.g. `google/gemini-2.5-flash`) | No |
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot API token | Yes (for gateway) |
 | `TELEGRAM_ALLOW_FROM` | Comma-separated Telegram user IDs to allow | No |
+| `HOST_UID` | Optional UID the container should drop to (defaults to built-in `picobot` user) | No |
+| `HOST_GID` | Optional GID paired with `HOST_UID` | No |
 
 ## Extending Picobot
 
