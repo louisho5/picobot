@@ -9,6 +9,11 @@ Run Picobot as a Docker container — one command to start.
 ```sh
 # 1. Create .env with your API key and settings
 nano docker/.env
+#   Example entries:
+#   OPENAI_API_KEY=sk-or-v1-YOUR_KEY
+#   PICOBOT_MODEL=google/gemini-2.5-flash
+#   HOST_UID=$(id -u)
+#   HOST_GID=$(id -g)
 
 # 2. Start
 docker compose -f docker/docker-compose.yml up -d

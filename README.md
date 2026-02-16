@@ -66,8 +66,13 @@ services:
       - PICOBOT_MODEL=google/gemini-2.5-flash
       - TELEGRAM_BOT_TOKEN=your-telegram-token
       - TELEGRAM_ALLOW_FROM=your-user-id
+      - HOST_UID=${HOST_UID:-1000}
+      - HOST_GID=${HOST_GID:-1000}
     volumes:
-      - ./picobot-data:/home/picobot/.picobot
+      - picobot-data:/home/picobot/.picobot
+
+volumes:
+  picobot-data:
 ```
 
 Then run:
@@ -75,6 +80,8 @@ Then run:
 ```sh
 docker compose up -d
 ```
+
+Tip: add `HOST_UID=$(id -u)` and `HOST_GID=$(id -g)` to your `.env` file (or export them) so the container automatically matches your host permissions.
 
 ### From Source
 

@@ -16,6 +16,12 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       # Optional: Comma-separated Telegram user IDs allowed to chat
       - TELEGRAM_ALLOW_FROM=${TELEGRAM_ALLOW_FROM:-}
+      # Optional: map container user to host UID/GID for bind mounts
+      - HOST_UID=${HOST_UID:-1000}
+      - HOST_GID=${HOST_GID:-1000}
     volumes:
       # Persist config, workspace, memory, and skills across restarts
-      - ./picobot-data:/home/picobot/.picobot
+      - picobot-data:/home/picobot/.picobot
+
+volumes:
+  picobot-data:
