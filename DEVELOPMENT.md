@@ -114,6 +114,19 @@ We use a multi-stage Alpine-based build — keeps the final image around ~33MB:
 docker build -f docker/Dockerfile -t louisho5/picobot:latest .
 ```
 
+#### Multi-arch builds with BuildKit
+
+Picobot's Dockerfile supports BuildKit/`buildx` so you can push both AMD64 and ARM64 images in a single run:
+
+```sh
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --builder default \
+  -t louisho5/picobot:latest .
+```
+
+Add `--push` to publish directly to a registry or `--load` to import one architecture into your local Docker engine.
+
 > **Important:** Run this from the **project root**, not from inside `docker/`. The build context needs access to the whole codebase.
 
 ### Test it locally
