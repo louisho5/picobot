@@ -43,3 +43,29 @@ Picobot is designed to be managed by external process managers like **Docker** o
 Picobot distinguishes between inbound and outbound flow to maintain responsiveness:
 - **Blocking Inbound (Backpressure)**: Pushing a message to the hub's `In` channel is a blocking operation. If the agent loop is overwhelmed and the buffer is full, the producers (Telegram poller, Cron, Heartbeat) will block. This ensures that no incoming tasks are lost, but instead "pressure" is applied back to the source.
 - **Non-Blocking Outbound (Shedding)**: Sending a message to the hub's `Out` channel is non-blocking. If the outbound buffer is full (indicating a slow or disconnected communication channel), the agent **drops** the response to ensure the core loop remains responsive for other tasks. This prevents a single slow client from freezing the entire agent.
+
+## MCP Protocol Feasibility
+Picobot's modular tool architecture makes it highly suitable for implementing the **Model Context Protocol (MCP)**.
+
+### Implementation Path
+1. **Config Extension**: Add an `mcpServers` map to `Config` in `internal/config/schema.go`.
+2. **MCP Tool Wrapper**: Create a new tool type (`internal/agent/tools/mcp.go`) that implements the `Tool` interface. This wrapper would:
+    - Establish a connection to the MCP server (SSE or Stdio).
+    - Fetch tool definitions from the MCP server during initialization.
+    - Proxy `Execute` calls to the remote MCP server.
+3. **Dynamic Registration**: Update `NewAgentLoop` in `internal/agent/loop.go` to iterate over the `mcpServers` configuration and register each remote tool into the registry.
+
+### Sample Configuration
+```json
+{
+  "mcpServers": {
+    "any_tools": {
+      "url": "https://any_tools/mcp",
+      "headers": {
+        "API_KEY": "YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+Given Picobot's Go foundation, using a standard MCP Go SDK would allow for a lightweight and robust integration, keeping the binary small while significantly expanding its tool capabilities.
