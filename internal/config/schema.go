@@ -14,12 +14,11 @@ type MCPConfig struct {
 }
 
 // MCPServerConfig defines a single MCP server connection.
+// Compliant with standard MCP configuration format.
 type MCPServerConfig struct {
-	Command  string            `json:"command"`        // e.g., "npx", "uvx", "docker"
-	Args     []string          `json:"args"`           // command arguments
-	Env      map[string]string `json:"env,omitempty"`  // environment variables
-	Enabled  bool              `json:"enabled"`        // whether this server is enabled
-	LogUsage bool              `json:"logUsage"`       // whether to log tool usage to console
+	Command string            `json:"command"`       // e.g., "npx", "uvx", "docker"
+	Args    []string          `json:"args"`          // command arguments
+	Env     map[string]string `json:"env,omitempty"` // environment variables
 }
 
 type AgentsConfig struct {

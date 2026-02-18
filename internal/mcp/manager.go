@@ -23,12 +23,11 @@ type Manager struct {
 
 // MCPTool wraps an MCP tool for use with Picobot's tool registry.
 type MCPTool struct {
-	serverName string
-	toolName   string
-	client     *Client
+	serverName  string
+	toolName    string
+	client      *Client
 	description string
-	schema     map[string]interface{}
-	logUsage   bool // Whether to log usage for this tool
+	schema      map[string]interface{}
 }
 
 // NewManager creates a new MCP manager.
@@ -40,14 +39,10 @@ func NewManager() *Manager {
 	}
 }
 
-// InitializeServers connects to all enabled MCP servers from config.
+// InitializeServers connects to all MCP servers from config.
+// All servers defined in the config are started automatically.
 func (m *Manager) InitializeServers(cfg config.MCPConfig) error {
 	for name, serverCfg := range cfg.Servers {
-		if !serverCfg.Enabled {
-			log.Printf("[MCP] Server %s is disabled, skipping", name)
-			continue
-		}
-
 		if err := m.ConnectServer(name, serverCfg); err != nil {
 			log.Printf("[MCP] Failed to connect to server %s: %v", name, err)
 			continue
@@ -103,7 +98,6 @@ func (m *Manager) ConnectServer(name string, cfg config.MCPServerConfig) error {
 			client:      client,
 			description: fmt.Sprintf("[%s] %s", name, tool.Description),
 			schema:      tool.Parameters,
-			logUsage:    cfg.LogUsage,
 		}
 	}
 
@@ -140,10 +134,6 @@ func (m *Manager) ExecuteTool(ctx context.Context, toolKey string, args map[stri
 		return "", fmt.Errorf("MCP tool not found: %s", toolKey)
 	}
 
-	if tool.logUsage {
-		log.Printf("[MCP] Executing tool: %s", toolKey)
-	}
-
 	result, err := tool.client.CallTool(ctx, tool.toolName, args)
 	if err != nil {
 		return "", fmt.Errorf("MCP tool execution failed: %w", err)
@@ -171,9 +161,6 @@ func (m *Manager) ExecuteTool(ctx context.Context, toolKey string, args map[stri
 		}
 	}
 
-	if tool.logUsage {
-		log.Printf("[MCP] Tool %s executed successfully (%d chars)", toolKey, output.Len())
-	}
 	return output.String(), nil
 }
 

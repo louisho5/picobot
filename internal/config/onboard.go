@@ -26,14 +26,15 @@ func DefaultConfig() Config {
 			OpenAI: &ProviderConfig{APIKey: "sk-or-v1-REPLACE_ME", APIBase: "https://openrouter.ai/api/v1"},
 		},
 		MCP: MCPConfig{
+			// MCP servers are configured here. Each server is automatically enabled.
+			// To disable a server, remove it from this list or comment it out.
 			Servers: map[string]MCPServerConfig{
-				"example": {
-					Command:  "npx",
-					Args:     []string{"-y", "@modelcontextprotocol/server-example"},
-					Env:      map[string]string{},
-					Enabled:  false, // Set to true to enable this MCP server
-					LogUsage: false, // Set to true to log tool executions to console
-				},
+				// Example server (commented out by default):
+				// "example": {
+				//     Command: "npx",
+				//     Args:    []string{"-y", "@modelcontextprotocol/server-example"},
+				//     Env:     map[string]string{},
+				// },
 			},
 		},
 	}

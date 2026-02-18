@@ -47,15 +47,11 @@ Add MCP servers to `~/.picobot/config.json`:
         "args": ["-y", "@modelcontextprotocol/server-github"],
         "env": {
           "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
-        },
-        "enabled": true,
-        "logUsage": false
+        }
       },
       "fetch": {
         "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-fetch"],
-        "enabled": true,
-        "logUsage": false
+        "args": ["-y", "@modelcontextprotocol/server-fetch"]
       }
     }
   }
@@ -64,13 +60,15 @@ Add MCP servers to `~/.picobot/config.json`:
 
 ### Configuration Fields
 
+Picobot uses the **standard MCP configuration format**:
+
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `command` | **Yes** | - | Executable to run (e.g., `npx`, `python3`, `docker`) |
 | `args` | No | `[]` | Arguments passed to command |
 | `env` | No | `{}` | Environment variables for the server |
-| `enabled` | No | `false` | Must be `true` to start the server |
-| `logUsage` | No | `false` | Log tool executions to console |
+
+> **Note:** All servers defined in the config are automatically started. To disable a server, remove it from the config or comment it out.
 
 ### Tool Namespacing
 
@@ -122,9 +120,7 @@ Browse the [MCP Registry](https://registry.modelcontextprotocol.io/) for hundred
         "args": ["-y", "@modelcontextprotocol/server-github"],
         "env": {
           "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_xxxxxxxxxxxx"
-        },
-        "enabled": true,
-        "logUsage": false
+        }
       }
     }
   }
@@ -143,9 +139,7 @@ Browse the [MCP Registry](https://registry.modelcontextprotocol.io/) for hundred
     "servers": {
       "fs": {
         "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/documents"],
-        "enabled": true,
-        "logUsage": false
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/user/documents"]
       }
     }
   }
@@ -161,21 +155,15 @@ Browse the [MCP Registry](https://registry.modelcontextprotocol.io/) for hundred
       "github": {
         "command": "npx",
         "args": ["-y", "@modelcontextprotocol/server-github"],
-        "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_xxx" },
-        "enabled": true,
-        "logUsage": false
+        "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_xxx" }
       },
       "fetch": {
         "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-fetch"],
-        "enabled": true,
-        "logUsage": false
+        "args": ["-y", "@modelcontextprotocol/server-fetch"]
       },
       "postgres": {
         "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost/mydb"],
-        "enabled": true,
-        "logUsage": false
+        "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://localhost/mydb"]
       }
     }
   }
@@ -193,39 +181,11 @@ Browse the [MCP Registry](https://registry.modelcontextprotocol.io/) for hundred
         "args": ["/path/to/my_mcp_server.py"],
         "env": {
           "API_KEY": "secret123"
-        },
-        "enabled": true,
-        "logUsage": false
+        }
       }
     }
   }
 }
-```
-
-### Logging Tool Usage
-
-Enable `logUsage` to see when tools are executed in the console:
-
-```json
-{
-  "mcp": {
-    "servers": {
-      "github": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-github"],
-        "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_xxx" },
-        "enabled": true,
-        "logUsage": true
-      }
-    }
-  }
-}
-```
-
-When enabled, you'll see in the logs:
-```
-[MCP] Executing tool: github_search_repositories
-[MCP] Tool github_search_repositories executed successfully (245 chars)
 ```
 
 ## HTTP-Only Servers (Proxy Pattern)
@@ -255,9 +215,7 @@ process.stdin.on('data', async (data) => {
         "args": ["/path/to/mcp-http-proxy.js"],
         "env": {
           "MCP_SERVER_URL": "https://api.example.com/mcp"
-        },
-        "enabled": true,
-        "logUsage": false
+        }
       }
     }
   }
@@ -344,7 +302,6 @@ This is useful for:
 **Cause:** MCP server started but no tools were enumerated.
 
 **Solutions:**
-- Check server is `enabled: true`
 - Verify server supports tool listing (some servers only provide resources)
 - Check server logs for errors
 

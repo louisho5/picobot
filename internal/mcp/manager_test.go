@@ -38,7 +38,6 @@ func TestManager_InitializeServers_DisabledServer(t *testing.T) {
 			"test": {
 				Command: "echo",
 				Args:    []string{"hello"},
-				Enabled: false,
 			},
 		},
 	}

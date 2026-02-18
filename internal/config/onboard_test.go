@@ -69,24 +69,8 @@ func TestSaveAndLoadConfig(t *testing.T) {
 	}
 }
 
-func TestDefaultConfigHasMCPExample(t *testing.T) {
+func TestDefaultConfigHasMCPSection(t *testing.T) {
 	cfg := DefaultConfig()
-	if len(cfg.MCP.Servers) == 0 {
-		t.Error("DefaultConfig should have at least one example MCP server")
-	}
-
-	example, ok := cfg.MCP.Servers["example"]
-	if !ok {
-		t.Error("DefaultConfig should have an 'example' MCP server")
-	}
-
-	if example.Command != "npx" {
-		t.Errorf("Example server command should be 'npx', got %s", example.Command)
-	}
-
-	if len(example.Args) == 0 {
-		t.Error("Example server should have args")
-	}
 
 	// Test JSON marshaling
 	b, err := json.MarshalIndent(cfg, "", "  ")
@@ -99,8 +83,8 @@ func TestDefaultConfigHasMCPExample(t *testing.T) {
 		t.Error("JSON should contain 'mcp' field")
 	}
 
-	if !contains(jsonStr, "example") {
-		t.Error("JSON should contain 'example' server")
+	if !contains(jsonStr, "servers") {
+		t.Error("JSON should contain 'servers' field")
 	}
 
 	t.Logf("Generated config:\n%s", jsonStr)
