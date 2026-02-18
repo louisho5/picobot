@@ -2,8 +2,10 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/local/picobot/internal/mcp"
 	"github.com/local/picobot/internal/providers"
@@ -75,10 +77,19 @@ func (t *mcpToolWrapper) Parameters() map[string]interface{} {
 }
 
 func (t *mcpToolWrapper) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	argsJSON, _ := json.Marshal(args)
+	log.Printf("[MCP] → %s %s", t.toolKey, argsJSON)
+	start := time.Now()
+
 	result, err := t.manager.ExecuteTool(ctx, t.toolKey, args)
+	elapsed := time.Since(start).Round(time.Millisecond)
+
 	if err != nil {
+		log.Printf("[MCP] ✗ %s failed after %s: %v", t.toolKey, elapsed, err)
 		return "", fmt.Errorf("MCP tool %s failed: %w", t.toolKey, err)
 	}
+
+	log.Printf("[MCP] ✓ %s completed in %s (%d bytes)", t.toolKey, elapsed, len(result))
 	return result, nil
 }
 

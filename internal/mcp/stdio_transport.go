@@ -22,9 +22,8 @@ const (
 
 // pendingCall represents a waiting RPC call.
 type pendingCall struct {
-	id      int
-	done    chan *response
-	errChan chan error
+	id   int
+	done chan *response
 }
 
 // StdioTransport implements Transport using stdio (subprocess).
@@ -131,11 +130,28 @@ func (t *StdioTransport) readResponses() {
 			continue
 		}
 
-		var resp response
-		if err := json.Unmarshal([]byte(line), &resp); err != nil {
-			log.Printf("[MCP] Failed to parse response: %v", err)
+		// Parse enough to distinguish a response from a server notification.
+		var msg struct {
+			JSONRPC string          `json:"jsonrpc"`
+			ID      *int            `json:"id"` // pointer: nil means field was absent
+			Method  string          `json:"method"`
+			Result  json.RawMessage `json:"result,omitempty"`
+			Error   *rpcError       `json:"error,omitempty"`
+		}
+		if err := json.Unmarshal([]byte(line), &msg); err != nil {
+			log.Printf("[MCP] Failed to parse message: %v", err)
 			continue
 		}
+
+		// Server-initiated notifications have a method but no id — ignore them.
+		if msg.ID == nil {
+			if msg.Method != "" {
+				log.Printf("[MCP] Received server notification: %s", msg.Method)
+			}
+			continue
+		}
+
+		resp := response{JSONRPC: msg.JSONRPC, ID: *msg.ID, Result: msg.Result, Error: msg.Error}
 
 		// Dispatch to pending call
 		t.mu.Lock()
@@ -184,9 +200,8 @@ func (t *StdioTransport) Call(ctx context.Context, method string, params interfa
 
 	// Register pending call BEFORE sending request
 	call := &pendingCall{
-		id:      req.ID,
-		done:    make(chan *response, 1),
-		errChan: make(chan error, 1),
+		id:   req.ID,
+		done: make(chan *response, 1),
 	}
 
 	t.mu.Lock()
@@ -254,13 +269,13 @@ func (t *StdioTransport) SendNotification(ctx context.Context, method string, pa
 		}
 	}
 
-	req := request{
+	notif := notification{
 		JSONRPC: "2.0",
 		Method:  method,
 		Params:  paramsRaw,
 	}
 
-	data, err := json.Marshal(req)
+	data, err := json.Marshal(notif)
 	if err != nil {
 		return fmt.Errorf("failed to marshal notification: %w", err)
 	}

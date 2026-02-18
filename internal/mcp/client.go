@@ -28,6 +28,13 @@ type request struct {
 	Params  json.RawMessage `json:"params,omitempty"`
 }
 
+// notification represents a JSON-RPC notification (no id field).
+type notification struct {
+	JSONRPC string          `json:"jsonrpc"`
+	Method  string          `json:"method"`
+	Params  json.RawMessage `json:"params,omitempty"`
+}
+
 // response represents a JSON-RPC response.
 type response struct {
 	JSONRPC string          `json:"jsonrpc"`

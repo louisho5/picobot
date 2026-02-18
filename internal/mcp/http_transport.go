@@ -129,6 +129,11 @@ func (t *HTTPTransport) handleJSONResponse(body io.Reader, expectedID int) (json
 		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
 	}
 
+	// Validate response ID matches request ID
+	if resp.ID != expectedID {
+		return nil, fmt.Errorf("unexpected response ID: got %d, want %d", resp.ID, expectedID)
+	}
+
 	if resp.Error != nil {
 		return nil, resp.Error
 	}
@@ -139,7 +144,6 @@ func (t *HTTPTransport) handleJSONResponse(body io.Reader, expectedID int) (json
 // handleSSEResponse handles a Server-Sent Events stream response.
 func (t *HTTPTransport) handleSSEResponse(ctx context.Context, body io.Reader, expectedID int) (json.RawMessage, error) {
 	reader := bufio.NewReader(body)
-	var result json.RawMessage
 
 	for {
 		select {
@@ -152,6 +156,9 @@ func (t *HTTPTransport) handleSSEResponse(ctx context.Context, body io.Reader, e
 		if err != nil {
 			if err == io.EOF {
 				break
+			}
+			if ctx.Err() != nil {
+				return nil, fmt.Errorf("SSE response timeout: %w", ctx.Err())
 			}
 			return nil, fmt.Errorf("SSE read error: %w", err)
 		}
@@ -189,17 +196,12 @@ func (t *HTTPTransport) handleSSEResponse(ctx context.Context, body io.Reader, e
 				if resp.Error != nil {
 					return nil, resp.Error
 				}
-				result = resp.Result
-				// Continue reading to drain the stream, but we have our result
+				return resp.Result, nil
 			}
 		}
 	}
 
-	if result == nil {
-		return nil, fmt.Errorf("no response received in SSE stream")
-	}
-
-	return result, nil
+	return nil, fmt.Errorf("no response received in SSE stream")
 }
 
 // SendNotification sends a JSON-RPC notification via HTTP POST.
@@ -217,13 +219,13 @@ func (t *HTTPTransport) SendNotification(ctx context.Context, method string, par
 		}
 	}
 
-	reqBody := request{
+	notifBody := notification{
 		JSONRPC: "2.0",
 		Method:  method,
 		Params:  paramsRaw,
 	}
 
-	data, err := json.Marshal(reqBody)
+	data, err := json.Marshal(notifBody)
 	if err != nil {
 		return fmt.Errorf("failed to marshal notification: %w", err)
 	}
@@ -262,6 +264,7 @@ func (t *HTTPTransport) SendNotification(ctx context.Context, method string, par
 
 // StartEventStream starts an SSE stream to receive server-initiated messages.
 // This runs in a goroutine and calls the handler for each message.
+// The goroutine will exit when the context is cancelled or the connection is closed.
 func (t *HTTPTransport) StartEventStream(ctx context.Context, handler func(method string, params json.RawMessage)) error {
 	if t.closed.Load() {
 		return fmt.Errorf("transport is closed")
@@ -303,6 +306,10 @@ func (t *HTTPTransport) StartEventStream(ctx context.Context, handler func(metho
 	}
 
 	// Start goroutine to read SSE events
+	// The goroutine will exit when:
+	// 1. The context is cancelled
+	// 2. The connection is closed by server
+	// 3. An error occurs during reading
 	go t.readSSEEvents(ctx, resp.Body, handler)
 
 	return nil

@@ -16,7 +16,7 @@ import (
 // Manager manages multiple MCP server connections.
 type Manager struct {
 	clients map[string]*Client
-	tools   map[string]*MCPTool // key: "serverName/toolName"
+	tools   map[string]*MCPTool // key: "serverName_toolName"
 	mu      sync.RWMutex
 	usage   map[string]int      // tool usage counter
 }
@@ -87,7 +87,7 @@ func (m *Manager) ConnectServer(name string, cfg config.MCPServerConfig) error {
 
 	// Register each tool with a namespaced key
 	for _, tool := range tools {
-		toolKey := fmt.Sprintf("%s_%s", name, tool.Name)
+		toolKey := fmt.Sprintf("mcp_%s_%s", name, tool.Name)
 		if existing, ok := m.tools[toolKey]; ok {
 			log.Printf("[MCP] Warning: Tool %s already exists (from %s), overwriting with %s", 
 				toolKey, existing.serverName, name)
@@ -140,7 +140,11 @@ func (m *Manager) ExecuteTool(ctx context.Context, toolKey string, args map[stri
 	}
 
 	if result.IsError {
-		return "", fmt.Errorf("MCP tool returned error")
+		errContent := result.String()
+		if errContent == "" {
+			errContent = "unknown error"
+		}
+		return "", fmt.Errorf("MCP tool returned error: %s", errContent)
 	}
 
 	// Track usage
@@ -182,7 +186,7 @@ func (m *Manager) GetToolsForServer(serverName string) []string {
 	defer m.mu.RUnlock()
 
 	var keys []string
-	prefix := serverName + "_"
+	prefix := "mcp_" + serverName + "_"
 	for key := range m.tools {
 		if len(key) > len(prefix) && key[:len(prefix)] == prefix {
 			keys = append(keys, key)

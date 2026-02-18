@@ -1,42 +1,56 @@
 # Model Context Protocol (MCP) Guide
 
-Picobot supports the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/), an open standard for connecting AI assistants to external data sources and tools.
+Picobot supports the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/), an open standard for connecting AI assistants to external tools and data sources.
 
 ## What is MCP?
 
-MCP is a protocol developed by Anthropic that standardizes how AI agents connect to external tools. Think of it like a USB-C port for AI applications - one standard interface for many different services.
+MCP is a protocol that standardises how AI agents connect to external tools. Think of it like a USB-C port for AI applications — one standard interface for many different services.
 
 **Benefits:**
-- Use official, maintained tools instead of building your own
+- Use official, maintained integrations instead of building your own
 - Secure, controlled access to external APIs
-- Growing ecosystem of available integrations
-
-> **Prerequisites:** MCP servers are separate processes that may require additional runtimes. Most official servers need **Node.js** (for `npx`), while community servers may need **Python**, **Docker**, or other runtimes. See [Requirements](#requirements) below.
+- Growing ecosystem of available servers
 
 ## How It Works in Picobot
 
 ```
-┌─────────────┐      stdio (local)      ┌─────────────┐      HTTP/HTTPS       ┌─────────────┐
-│   Picobot   │  ─────────────────────>  │  MCP Server  │  ──────────────────> │  External   │
-│    (Go)     │    JSON-RPC messages     │   (Node.js)  │    API calls         │    API      │
-│             │ <──────────────────────  │              │ <─────────────────── │ (GitHub,    │
-└─────────────┘                          └─────────────┘                      │  Slack, etc)│
-                                                                               └─────────────┘
+┌─────────────┐   stdio or HTTP/SSE   ┌──────────────┐   HTTP/HTTPS   ┌─────────────┐
+│   Picobot   │ ─────────────────────>│  MCP Server  │ ─────────────> │  External   │
+│    (Go)     │   JSON-RPC messages   │ (subprocess  │   API calls    │    API      │
+│             │ <─────────────────────│  or remote)  │ <───────────── │ (GitHub,    │
+└─────────────┘                       └──────────────┘                │  Slack, etc)│
+                                                                       └─────────────┘
 ```
 
-1. **Picobot spawns** an MCP server as a local subprocess (via stdio)
-2. **Communication** happens via JSON-RPC over stdin/stdout
-3. **The MCP server** translates requests to HTTP API calls (GitHub, Slack, etc.)
-4. **Results** flow back through the same channel
-
-## Requirements
-
-- **Node.js** must be installed on the machine running Picobot
-- MCP servers are installed on-demand via `npx`
+1. Picobot connects to each MCP server at startup
+2. It sends an `initialize` handshake (protocol version `2024-11-05`)
+3. It calls `tools/list` to enumerate available tools
+4. Tools are registered in the tool registry with a `serverName_toolName` prefix
+5. When the LLM calls an MCP tool, Picobot sends a `tools/call` request to the appropriate server
+6. Results flow back through the same channel to the LLM
 
 ## Configuration
 
 Add MCP servers to `~/.picobot/config.json`:
+
+### HTTP Streaming Server
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "my-api": {
+        "url": "https://api.example.com/mcp",
+        "headers": {
+          "Authorization": "Bearer your-token-here"
+        }
+      }
+    }
+  }
+}
+```
+
+### Stdio Server
 
 ```json
 {
@@ -58,110 +72,61 @@ Add MCP servers to `~/.picobot/config.json`:
 }
 ```
 
+All servers in the config are started automatically at startup. To disable a server, remove it from the config.
+
 ### Configuration Fields
 
-Picobot supports both **stdio** and **streamable HTTP** transports:
+Picobot supports two transports. Use either `command` (stdio) **or** `url` (HTTP).
 
-**For stdio transport (local subprocess):**
+**Stdio transport (local subprocess):**
 
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `command` | **Yes*** | - | Executable to run (e.g., `npx`, `python3`, `docker`) |
-| `args` | No | `[]` | Arguments passed to command |
-| `env` | No | `{}` | Environment variables for the server |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `command` | Yes | Executable to run (e.g. `npx`, `python3`) |
+| `args` | No | Arguments passed to the command |
+| `env` | No | Extra environment variables for the process |
 
-**For HTTP transport (remote server):**
+**HTTP transport (remote server):**
 
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `url` | **Yes*** | - | HTTP endpoint URL (e.g., `https://api.example.com/mcp`) |
-
-> **Note:** Use either `command` (for stdio) OR `url` (for HTTP), not both. All servers defined in the config are automatically started. To disable a server, remove it from the config or comment it out.
+| Field | Required | Description |
+|-------|----------|-------------|
+| `url` | Yes | HTTP endpoint (requests go to `<url>/mcp`) |
 
 ### Tool Namespacing
 
-MCP tools are registered with a prefix to avoid collisions:
+MCP tools are registered in the tool registry with a `mcp_[serverName-from-config]_[toolName]` prefix to avoid collisions:
 
 ```
-<serverName>_<toolName>
-
-Examples:
-- github_search_repositories
-- github_get_issue
-- fetch_fetch_url
+mcp_github_search_repositories
+mcp_github_get_issue
+mcp_fetch_fetch
 ```
 
-**Note:** If two servers export tools with identical names, the later server in the config will overwrite the earlier one. A warning will be logged: `[MCP] Warning: Tool X already registered, overwriting`
-
-## Available MCP Servers
-
-### Official Reference Servers
-
-| Server | Package | Description | Required Env |
-|--------|---------|-------------|--------------|
-| **Filesystem** | `@modelcontextprotocol/server-filesystem` | Read/write files | `FILESYSTEM_PATHS` |
-| **Fetch** | `@modelcontextprotocol/server-fetch` | Web content fetching | None |
-| **Git** | `@modelcontextprotocol/server-git` | Git repository tools | None |
-| **Memory** | `@modelcontextprotocol/server-memory` | Knowledge graph memory | None |
-| **Time** | `@modelcontextprotocol/server-time` | Timezone conversions | None |
-
-### Community Servers
-
-Browse the [MCP Registry](https://registry.modelcontextprotocol.io/) for hundreds of community-built servers:
-
-- PostgreSQL, SQLite, Redis
-- Slack, Discord
-- Google Drive, Dropbox
-- Brave Search, DuckDuckGo
-- And many more!
+If two servers export a tool with the same resulting key, the later server overwrites the earlier one and a warning is logged.
 
 ## Transports
 
-### Stdio Transport (Default)
+### Stdio Transport
 
-The stdio transport spawns MCP servers as local subprocesses. This is the most common transport and works with most MCP servers:
+Spawns the MCP server as a local subprocess and communicates over stdin/stdout using newline-delimited JSON-RPC. This is the most common transport and works with nearly all available MCP servers.
 
-```json
-{
-  "mcp": {
-    "servers": {
-      "github": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-github"],
-        "env": {
-          "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_xxx"
-        }
-      }
-    }
-  }
-}
-```
+- Server stderr is forwarded to Picobot's log as `[MCP Server] <line>`
+- Concurrent calls are fully supported (responses are dispatched by ID)
+- Server-initiated notifications (no `id` field) are logged and ignored
+- On shutdown: stdin is closed, Picobot waits up to 5 seconds for graceful exit, then sends SIGKILL
 
-### Streamable HTTP Transport
+### HTTP Transport
 
-The HTTP transport connects to remote MCP servers over HTTP with Server-Sent Events (SSE) for streaming. This allows connecting to cloud-hosted MCP servers:
+Connects to a remote MCP server over HTTP. Requests go to `POST <url>/mcp`. Supports both direct JSON responses and Server-Sent Events (SSE) streaming responses.
 
-```json
-{
-  "mcp": {
-    "servers": {
-      "remote": {
-        "url": "https://api.example.com/mcp"
-      }
-    }
-  }
-}
-```
-
-**Features:**
-- Supports both direct JSON responses and SSE streaming
-- Automatic session management via `Mcp-Session-Id` header
-- Protocol version negotiation
-- Can receive server-initiated notifications via SSE
+- Session state is maintained via `Mcp-Session-Id` header
+- SSE resumption is supported via `Last-Event-ID` header
+- Server-initiated notifications can be received via `GET <url>/mcp` (SSE stream)
+- On close: sends `DELETE <url>/mcp` to terminate the session
 
 ## Configuration Examples
 
-### GitHub Integration (stdio)
+### GitHub Integration
 
 ```json
 {
@@ -179,9 +144,8 @@ The HTTP transport connects to remote MCP servers over HTTP with Server-Sent Eve
 }
 ```
 
-**Get a token:** GitHub → Settings → Developer settings → Personal access tokens
-
-**Required scopes:** `repo` (for private repos), `read:user`
+Get a token: GitHub → Settings → Developer settings → Personal access tokens
+Required scopes: `repo` (for private repos), `read:user`
 
 ### Filesystem Access
 
@@ -223,8 +187,6 @@ The HTTP transport connects to remote MCP servers over HTTP with Server-Sent Eve
 ```
 
 ### Remote HTTP Server
-
-Connect to an MCP server hosted remotely:
 
 ```json
 {
@@ -274,39 +236,25 @@ You can mix stdio and HTTP servers in the same config:
 }
 ```
 
-## HTTP-Only Servers (Proxy Pattern)
+## Available MCP Servers
 
-Some MCP servers only support HTTP transport. You can use them via a **stdio-to-HTTP proxy**:
+### Official Reference Servers
 
-```javascript
-// mcp-http-proxy.js
-const SERVER_URL = process.env.MCP_SERVER_URL;
+| Server | Package | Description |
+|--------|---------|-------------|
+| **Filesystem** | `@modelcontextprotocol/server-filesystem` | Read/write files |
+| **Fetch** | `@modelcontextprotocol/server-fetch` | Web content fetching |
+| **Git** | `@modelcontextprotocol/server-git` | Git repository tools |
+| **Memory** | `@modelcontextprotocol/server-memory` | Knowledge graph memory |
+| **Time** | `@modelcontextprotocol/server-time` | Timezone conversions |
 
-process.stdin.on('data', async (data) => {
-  const response = await fetch(SERVER_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: data
-  });
-  console.log(await response.text());
-});
-```
+### Test Servers
 
-```json
-{
-  "mcp": {
-    "servers": {
-      "remote-api": {
-        "command": "node",
-        "args": ["/path/to/mcp-http-proxy.js"],
-        "env": {
-          "MCP_SERVER_URL": "https://api.example.com/mcp"
-        }
-      }
-    }
-  }
-}
-```
+| Server | URL | Description |
+|--------|-----|-------------|
+| **Echo** | `https://mcp-echo.fybre.me` | Echoes back whatever is sent — useful for testing MCP connectivity |
+
+Browse the [MCP Registry](https://registry.modelcontextprotocol.io/) for hundreds of community-built servers.
 
 ## Viewing Available Tools
 
@@ -316,133 +264,121 @@ List all loaded tools (including MCP):
 ./picobot tools
 ```
 
-Show only MCP tools:
+List only MCP tools (connects to configured servers):
 
 ```sh
-./picobot tools -m
-# or
 ./picobot tools --mcp
 ```
 
 Output:
 ```
-Available tools (15):
-
-  • filesystem
-    Read, write, and list files in the workspace
-    Parameters: yes
+MCP tools (12):
 
   • github_search_repositories
     [github] Search for repositories on GitHub
     Parameters: yes
 
-  • fetch_fetch_url
-    [fetch] Fetch content from a URL
+  • github_get_issue
+    [github] Get details about a GitHub issue
     Parameters: yes
 ```
 
-The `[serverName]` prefix identifies MCP tools.
+## Logging
+
+Picobot logs MCP activity to stdout. Key log lines:
+
+```
+# Startup
+[MCP] Using stdio transport for command: npx
+[MCP] Connected to server github-mcp-server (version: 0.6.2)
+[MCP] Server github provides 25 tools
+[MCP] Registering 25 MCP tools
+
+# Tool calls
+[MCP] → github_search_repositories {"query":"picobot"}
+[MCP] ✓ github_search_repositories completed in 342ms (4821 bytes)
+[MCP] ✗ github_get_issue failed after 30000ms: MCP request timeout: context deadline exceeded
+
+# Server output
+[MCP Server] <line from server stderr>
+
+# Server-initiated notifications (e.g. cancellation, progress)
+[MCP] Received server notification: notifications/cancelled
+```
 
 ## Tool Usage Statistics
 
-The agent has access to an `mcp_stats` tool that shows how many times each MCP tool has been used in the current session:
+The agent has access to an `mcp_stats` tool that reports how many times each MCP tool has been called in the current session. Ask the agent:
 
-**Ask the agent:** "Show me my MCP tool usage" or "What MCP tools have I used?"
+> "Show me my MCP tool usage"
 
-**Example output:**
+Example output:
 ```
 MCP Tool Usage Statistics:
 
   • github_search_repositories: 5 call(s)
   • github_get_issue: 2 call(s)
-  • fetch_fetch_url: 1 call(s)
+  • fetch_fetch: 1 call(s)
 ```
-
-This is useful for:
-- Monitoring API usage
-- Debugging which tools are being called
-- Understanding agent behavior
 
 ## Troubleshooting
 
 ### "failed to initialize MCP server: context deadline exceeded"
 
-**Cause:** Timeout (30 seconds) while connecting to MCP server.
+Timeout (30 seconds) while connecting.
 
-**Solutions:**
-- Check the server is installed: `npx -y @package/name --help`
+- Check the server installs and starts: `npx -y @package/name --help`
 - Verify required environment variables are set
-- Check server logs (stderr is logged to console)
+- Check `[MCP Server]` log lines for errors from the server process
 
 ### "failed to start MCP server: exec..."
 
-**Cause:** Command not found.
+Command not found.
 
-**Solutions:**
 - Ensure Node.js is installed: `node --version`
 - Use full path if needed: `"command": "/usr/local/bin/npx"`
-- For Python servers, ensure `python3` is in PATH
 
 ### "Registering 0 MCP tools"
 
-**Cause:** MCP server started but no tools were enumerated.
+Server started but returned no tools.
 
-**Solutions:**
-- Verify server supports tool listing (some servers only provide resources)
-- Check server logs for errors
+- Verify the server supports tool listing (some servers only provide resources)
+- Check `[MCP Server]` log lines for startup errors
 
-### Tools not appearing in list
+### "Received server notification: ..."
 
-**Cause:** Server started after tool discovery.
+Normal. Servers send notifications (e.g. `notifications/cancelled`) that have no `id` field. These are logged and safely ignored — they do not indicate an error.
 
-**Solutions:**
-- Restart Picobot: MCP tools are enumerated at startup
-- Check logs: `grep "MCP" picobot.log`
+### Tools not appearing
 
-## Architecture Details
+MCP tools are enumerated at startup only. Restart Picobot after changing the config.
 
-### Transport
-
-Picobot uses **stdio transport** - the most common and recommended approach:
-- Spawns server as subprocess
-- JSON-RPC over stdin/stdout
-- Works with 95%+ of available MCP servers
-
-### Security
-
-- MCP servers run as **local subprocesses** (not remote)
-- Environment variables (like API keys) are passed securely via process env
-- Each server is sandboxed in its own process
-- No network ports exposed
+## Architecture
 
 ### Tool Execution Flow
 
 ```
-1. User sends message to Picobot
-2. Agent loop builds context with all tool definitions
-3. LLM decides to use tool (e.g., "github_search_repositories")
-4. Agent loop executes tool via registry
-5. Registry routes to MCP manager
-6. MCP manager forwards to correct MCP server via JSON-RPC
-7. MCP server calls external API (GitHub, etc.)
-8. Result flows back through same path
-9. LLM receives result and formulates response
+1. User sends message
+2. Agent loop sends all tool definitions (native + MCP) to the LLM
+3. LLM decides to call e.g. "github_search_repositories"
+4. Registry routes to mcpToolWrapper → Manager → Client → Transport
+5. Transport sends tools/call JSON-RPC to the MCP server
+6. MCP server calls the external API (GitHub, etc.)
+7. Result flows back: Transport → Client → Manager → Registry → Agent loop
+8. LLM receives result and formulates a response
 ```
+
+### Security
+
+- Stdio servers run as local subprocesses — no network ports exposed
+- Environment variables (API keys) are passed via process environment
+- Each server is isolated in its own process
 
 ## Further Reading
 
 - [MCP Specification](https://spec.modelcontextprotocol.io/)
 - [MCP Registry](https://registry.modelcontextprotocol.io/)
 - [Official MCP Servers](https://github.com/modelcontextprotocol/servers)
-- [MCP SDK Documentation](https://modelcontextprotocol.io/docs/concepts/sdk)
-
-## Contributing
-
-To add native support for a new MCP transport or feature:
-
-1. See `internal/mcp/` for implementation
-2. Add tests in `internal/mcp/*_test.go`
-3. Update this guide with examples
 
 ---
 
