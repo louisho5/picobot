@@ -88,7 +88,7 @@ Edit `~/.picobot/workspace/USER.md` to fill in your name, timezone, preferences,
 ./picobot gateway
 ```
 
-This starts the agent loop, heartbeat, and any enabled channels (e.g., Telegram).
+This starts the agent loop, heartbeat, and any enabled channels (e.g., Telegram, Discord).
 
 ## CLI Commands
 
@@ -208,10 +208,82 @@ You can also send these commands to @BotFather to polish your bot:
 
 ---
 
+## Setting Up Discord
+
+To connect Picobot to Discord, you need to create a bot application in the Discord Developer Portal.
+
+### 1. Create a Discord Application
+
+Go to the [Discord Developer Portal](https://discord.com/developers/applications) and click **"New Application"**. Give it a name (e.g., `Picobot`).
+
+### 2. Create a Bot
+
+In your application, go to the **Bot** tab and click **"Add Bot"**. This creates a bot user for your application.
+
+### 3. Enable Message Content Intent
+
+In the **Bot** tab, scroll down to **Privileged Gateway Intents** and enable:
+- **Message Content Intent** — required for the bot to read message content
+
+### 4. Copy the Bot Token
+
+In the **Bot** tab, click **"Reset Token"** to generate a new token. Copy it — you'll need it in the next step.
+
+> ⚠️ Keep your bot token secret! Anyone with the token can control your bot.
+
+### 5. Get Your Discord User ID
+
+Enable **Developer Mode** in Discord (Settings → Advanced → Developer Mode). Then right-click your username and select **"Copy User ID"**. This is a number like `123456789012345678`.
+
+### 6. Invite the Bot to Your Server
+
+Go to the **OAuth2** tab → **URL Generator**:
+1. Select the `bot` scope
+2. Select permissions: **Send Messages**, **Read Message History**
+3. Copy the generated URL and open it in your browser
+4. Select the server to add the bot to
+
+### 7. Configure Picobot
+
+Edit `~/.picobot/config.json` and add your Discord settings:
+
+```json
+{
+  "channels": {
+    "discord": {
+      "enabled": true,
+      "token": "MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXX",
+      "allowFrom": ["123456789012345678"]
+    }
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `enabled` | Set to `true` to activate the Discord channel |
+| `token` | The bot token from the Developer Portal |
+| `allowFrom` | List of Discord user IDs allowed to chat. Empty `[]` = anyone can use it |
+
+### 8. Start the Gateway
+
+```sh
+./picobot gateway
+```
+
+Now mention your bot in a Discord server (`@Picobot hello!`) or send it a DM. Picobot will respond!
+
+**How the bot responds:**
+- **In servers** — only when mentioned (`@Picobot`) or when a message is a reply to the bot
+- **In DMs** — responds to all messages
+
+---
+
 ## Next Steps
 
 - Edit `SOUL.md` to change the agent's personality
 - Edit `AGENTS.md` to add custom instructions
 - Ask the agent to create skills for tasks you do often
 - Enable Telegram in `config.json` to chat with your bot on mobile
+- Enable Discord in `config.json` to chat with your bot on Discord
 - See [CONFIG.md](CONFIG.md) for all configuration options

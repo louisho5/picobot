@@ -158,6 +158,13 @@ func NewRootCmd() *cobra.Command {
 				}
 			}
 
+			// start discord if enabled
+			if cfg.Channels.Discord.Enabled {
+				if err := channels.StartDiscord(ctx, hub, cfg.Channels.Discord.Token, cfg.Channels.Discord.AllowFrom); err != nil {
+					fmt.Fprintf(os.Stderr, "failed to start discord: %v\n", err)
+				}
+			}
+
 			// wait for signal
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
