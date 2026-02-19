@@ -37,7 +37,7 @@ func TestLLMRankerWithOpenAIFunctionCall(t *testing.T) {
 	}))
 	defer h.Close()
 
-	p := providers.NewOpenAIProvider("test-key", h.URL)
+	p := providers.NewOpenAIProvider("test-key", h.URL, 60)
 	p.Client = &http.Client{Timeout: 5 * time.Second}
 
 	mems := []MemoryItem{{Kind: "short", Text: "buy milk"}, {Kind: "short", Text: "call mom"}}

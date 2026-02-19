@@ -69,7 +69,7 @@ func NewRootCmd() *cobra.Command {
 			cfg, _ := config.LoadConfig()
 			var provider providers.LLMProvider
 			if cfg.Providers.OpenAI != nil && cfg.Providers.OpenAI.APIKey != "" {
-				provider = providers.NewOpenAIProvider(cfg.Providers.OpenAI.APIKey, cfg.Providers.OpenAI.APIBase)
+				provider = providers.NewOpenAIProvider(cfg.Providers.OpenAI.APIKey, cfg.Providers.OpenAI.APIBase, cfg.Agents.Defaults.RequestTimeoutS)
 			} else {
 				provider = providers.NewStubProvider()
 			}

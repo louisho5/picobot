@@ -18,6 +18,7 @@ type AgentDefaults struct {
 	Temperature        float64 `json:"temperature"`
 	MaxToolIterations  int     `json:"maxToolIterations"`
 	HeartbeatIntervalS int     `json:"heartbeatIntervalS"`
+	RequestTimeoutS    int     `json:"requestTimeoutS"`
 }
 
 type ChannelsConfig struct {

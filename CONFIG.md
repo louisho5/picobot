@@ -13,7 +13,8 @@ Picobot is configured via `~/.picobot/config.json`. Run `picobot onboard` to gen
       "maxTokens": 8192,
       "temperature": 0.7,
       "maxToolIterations": 100,
-      "heartbeatIntervalS": 60
+      "heartbeatIntervalS": 60,
+      "requestTimeoutS": 60
     }
   },
   "channels": {
@@ -51,6 +52,7 @@ Agent behavior settings.
 | `temperature` | float | `0.7` | LLM temperature (0.0 = deterministic, 1.0 = creative). |
 | `maxToolIterations` | int | `100` | Maximum number of tool-calling iterations per request. Prevents infinite loops. |
 | `heartbeatIntervalS` | int | `60` | How often (in seconds) the heartbeat checks `HEARTBEAT.md` for periodic tasks. Only used in gateway mode. |
+| `requestTimeoutS` | int | `60` | HTTP timeout in seconds for each LLM API request. Increase for slow models or poor network conditions. |
 
 ### Model Priority
 
@@ -70,7 +72,8 @@ The model is resolved in this order:
       "maxTokens": 16384,
       "temperature": 0.5,
       "maxToolIterations": 200,
-      "heartbeatIntervalS": 120
+      "heartbeatIntervalS": 120,
+      "requestTimeoutS": 120
     }
   }
 }
