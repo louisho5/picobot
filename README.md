@@ -247,15 +247,15 @@ Works on any Linux with 256MB RAM. No runtime dependencies. Just copy the binary
 
 | Layer | Technology |
 |-------|------------|
-| Language | [Go](https://go.dev/) 1.25+ |
+| Language | [Go](https://go.dev/) 1.26+ |
 | CLI framework | [Cobra](https://github.com/spf13/cobra) |
 | LLM providers | OpenAI-compatible API (OpenAI, OpenRouter, Ollama, etc.) |
 | Telegram | Raw Bot API (no third-party SDK, standard library `net/http`) |
-| Discord | Gateway WebSocket + REST API (`gorilla/websocket`, `net/http`) |
+| Discord | [discordgo](https://github.com/bwmarrin/discordgo) library |
 | HTTP / JSON | Go standard library only (`net/http`, `encoding/json`) |
 | Container | Alpine Linux 3.20 (multi-stage Docker build) |
 
-Picobot has **two** external dependencies (`spf13/cobra` for CLI parsing, `gorilla/websocket` for Discord Gateway). Everything else — HTTP clients, JSON handling, Telegram polling, provider integrations — uses the Go standard library.
+Picobot has **two** external dependencies (`spf13/cobra` for CLI parsing, `bwmarrin/discordgo` for Discord). Everything else — HTTP clients, JSON handling, Telegram polling, provider integrations — uses the Go standard library.
 
 ## Project Structure
 
