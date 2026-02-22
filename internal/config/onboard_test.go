@@ -68,3 +68,37 @@ func TestSaveAndLoadConfig(t *testing.T) {
 		t.Fatalf("expected default OpenAI API base, got %q", parsed.Providers.OpenAI.APIBase)
 	}
 }
+
+func TestDefaultConfigHasMCPSection(t *testing.T) {
+	cfg := DefaultConfig()
+
+	// Test JSON marshaling
+	b, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal config: %v", err)
+	}
+
+	jsonStr := string(b)
+	if !contains(jsonStr, "mcp") {
+		t.Error("JSON should contain 'mcp' field")
+	}
+
+	if !contains(jsonStr, "servers") {
+		t.Error("JSON should contain 'servers' field")
+	}
+
+	t.Logf("Generated config:\n%s", jsonStr)
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsInternal(s, substr))
+}
+
+func containsInternal(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

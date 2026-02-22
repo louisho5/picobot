@@ -5,6 +5,21 @@ type Config struct {
 	Agents    AgentsConfig    `json:"agents"`
 	Channels  ChannelsConfig  `json:"channels"`
 	Providers ProvidersConfig `json:"providers"`
+	MCP       MCPConfig       `json:"mcp"`
+}
+
+// MCPConfig holds MCP server configurations.
+type MCPConfig struct {
+	Servers map[string]MCPServerConfig `json:"servers"` // Example server provided by default
+}
+
+// MCPServerConfig defines a single MCP server connection.
+// Supports both stdio transport (Command/Args/Env) and HTTP transport (URL).
+type MCPServerConfig struct {
+	Command string            `json:"command,omitempty"` // For stdio transport: executable
+	Args    []string          `json:"args,omitempty"`    // For stdio transport: arguments
+	Env     map[string]string `json:"env,omitempty"`     // For stdio transport: environment
+	URL     string            `json:"url,omitempty"`     // For HTTP transport: endpoint URL
 }
 
 type AgentsConfig struct {
