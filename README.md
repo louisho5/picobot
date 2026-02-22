@@ -39,6 +39,8 @@ docker run -d --name picobot \
   -e OPENAI_API_KEY="your-key" \
   -e OPENAI_API_BASE="https://openrouter.ai/api/v1" \
   -e PICOBOT_MODEL="openrouter/free" \
+  -e PICOBOT_MAX_TOKENS=8192 \
+  -e PICOBOT_MAX_TOOL_ITERATIONS=100 \
   -e TELEGRAM_BOT_TOKEN="your-telegram-token" \
   -v ./picobot-data:/home/picobot/.picobot \
   --restart unless-stopped \
@@ -61,6 +63,8 @@ services:
       - OPENAI_API_KEY=your-key
       - OPENAI_API_BASE=https://openrouter.ai/api/v1
       - PICOBOT_MODEL=openrouter/free
+      - PICOBOT_MAX_TOKENS=8192
+      - PICOBOT_MAX_TOOL_ITERATIONS=100
       - TELEGRAM_BOT_TOKEN=your-telegram-token
       - TELEGRAM_ALLOW_FROM=your-user-id
     volumes:
