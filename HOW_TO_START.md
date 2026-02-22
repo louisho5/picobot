@@ -274,8 +274,8 @@ Edit `~/.picobot/config.json` and add your Discord settings:
 Now mention your bot in a Discord server (`@Picobot hello!`) or send it a DM. Picobot will respond!
 
 **How the bot responds:**
-- **In servers** — only when mentioned (`@Picobot`) or when a message is a reply to the bot
-- **In DMs** — responds to all messages
+- **In servers** — only when @-mentioned (e.g. `@Picobot what's the weather?`)
+- **In DMs** — responds to every message
 
 ---
 

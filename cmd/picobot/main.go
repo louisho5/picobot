@@ -165,6 +165,12 @@ func NewRootCmd() *cobra.Command {
 				}
 			}
 
+			// start hub router after all channels have subscribed.
+			// This routes outbound messages from hub.Out to each channel's
+			// dedicated queue, preventing competing reads when multiple channels
+			// are active simultaneously.
+			hub.StartRouter(ctx)
+
 			// wait for signal
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
