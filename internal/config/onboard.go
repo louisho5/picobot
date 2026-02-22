@@ -22,7 +22,10 @@ func DefaultConfig() Config {
 			HeartbeatIntervalS: 60,
 			RequestTimeoutS:    60,
 		}},
-		Channels: ChannelsConfig{Telegram: TelegramConfig{Enabled: false, Token: "", AllowFrom: []string{}}},
+		Channels: ChannelsConfig{
+			Telegram: TelegramConfig{Enabled: false, Token: "", AllowFrom: []string{}},
+			Discord:  DiscordConfig{Enabled: false, Token: "", AllowFrom: []string{}},
+		},
 		Providers: ProvidersConfig{
 			OpenAI: &ProviderConfig{APIKey: "sk-or-v1-REPLACE_ME", APIBase: "https://openrouter.ai/api/v1"},
 		},

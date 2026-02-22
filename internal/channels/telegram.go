@@ -115,6 +115,10 @@ func StartTelegramWithBase(ctx context.Context, hub *chat.Hub, token, base strin
 		}
 	}()
 
+	// Subscribe to the outbound queue before launching the goroutine so the
+	// registration is visible to the hub router from the moment this function returns.
+	outCh := hub.Subscribe("telegram")
+
 	// outbound sender goroutine
 	go func() {
 		client := &http.Client{Timeout: 10 * time.Second}
@@ -123,11 +127,7 @@ func StartTelegramWithBase(ctx context.Context, hub *chat.Hub, token, base strin
 			case <-ctx.Done():
 				log.Println("telegram: stopping outbound sender")
 				return
-			case out := <-hub.Out:
-				if out.Channel != "telegram" {
-					// ignore messages for other channels
-					continue
-				}
+			case out := <-outCh:
 				u := base + "/sendMessage"
 				v := url.Values{}
 				v.Set("chat_id", out.ChatID)

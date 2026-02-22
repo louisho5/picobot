@@ -50,6 +50,9 @@ func TestStartTelegramWithBase(t *testing.T) {
 	if err := StartTelegramWithBase(ctx, b, token, base, nil); err != nil {
 		t.Fatalf("StartTelegramWithBase failed: %v", err)
 	}
+	// Start the hub router so outbound messages sent to b.Out are dispatched
+	// to each channel's subscription (telegram in this test).
+	b.StartRouter(ctx)
 
 	// Wait for inbound from getUpdates
 	select {

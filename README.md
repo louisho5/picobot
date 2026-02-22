@@ -14,7 +14,7 @@
 
 ---
 
-Love the idea of open-source AI agents like [OpenClaw](https://github.com/openclaw/openclaw) but tired of the bloat? **Picobot** gives you the same power — persistent memory, tool calling, skills, Telegram integration — in a single ~8MB binary that boots in milliseconds.
+Love the idea of open-source AI agents like [OpenClaw](https://github.com/openclaw/openclaw) but tired of the bloat? **Picobot** gives you the same power — persistent memory, tool calling, skills, Telegram and Discord integration — in a single ~8MB binary that boots in milliseconds.
 
 No Python. No Node. No 500MB container. Just one Go binary and a config file.
 
@@ -40,6 +40,7 @@ docker run -d --name picobot \
   -e OPENAI_API_BASE="https://openrouter.ai/api/v1" \
   -e PICOBOT_MODEL="google/gemini-2.5-flash" \
   -e TELEGRAM_BOT_TOKEN="your-telegram-token" \
+  -e DISCORD_BOT_TOKEN="your-discord-token" \
   -v ./picobot-data:/home/picobot/.picobot \
   --restart unless-stopped \
   louisho5/picobot:latest
@@ -63,6 +64,8 @@ services:
       - PICOBOT_MODEL=google/gemini-2.5-flash
       - TELEGRAM_BOT_TOKEN=your-telegram-token
       - TELEGRAM_ALLOW_FROM=your-user-id
+      - DISCORD_BOT_TOKEN=your-discord-token
+      - DISCORD_ALLOW_FROM=your-discord-user-id
     volumes:
       - ./picobot-data:/home/picobot/.picobot
 ```
@@ -90,7 +93,7 @@ Actually the logic is simple and straightforward. Messages flow through a **Chat
   <img src="how-it-works.png" alt="How Picobot Works" width="600">
 </p>
 
-Notes: Channel refers to communication channels (e.g., Telegram, WhatsApp, etc.).
+Notes: Channel refers to communication channels (e.g., Telegram, Discord, WhatsApp, etc.).
 
 ## Features
 
@@ -146,6 +149,30 @@ Chat with your agent from your phone. Set up in 2 minutes:
 
 See [HOW_TO_START.md](HOW_TO_START.md) for a detailed BotFather walkthrough.
 
+### Discord Integration
+
+Connect your agent to Discord servers:
+
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Create a new application and bot
+3. Enable **Message Content Intent** in Bot settings
+4. Copy the bot token
+5. Add to config under `channels.discord`
+
+```json
+{
+  "channels": {
+    "discord": {
+      "enabled": true,
+      "token": "YOUR_BOT_TOKEN",
+      "allowFrom": ["USER_ID_1", "USER_ID_2"]
+    }
+  }
+}
+```
+
+The bot will respond when mentioned in servers, or to all messages in DMs.
+
 ### Heartbeat
 
 A configurable periodic check (default: 60s) that reads `HEARTBEAT.md` for scheduled tasks — like a personal cron with natural language.
@@ -173,8 +200,13 @@ Picobot uses a single JSON config at `~/.picobot/config.json`:
   "channels": {
     "telegram": {
       "enabled": true,
-      "token": "YOUR_BOT_TOKEN",
-      "allowFrom": ["YOUR_USER_ID"]
+      "token": "YOUR_TELEGRAM_BOT_TOKEN",
+      "allowFrom": ["YOUR_TELEGRAM_USER_ID"]
+    },
+    "discord": {
+      "enabled": true,
+      "token": "YOUR_DISCORD_BOT_TOKEN",
+      "allowFrom": ["YOUR_DISCORD_USER_ID"]
     }
   }
 }
@@ -215,14 +247,15 @@ Works on any Linux with 256MB RAM. No runtime dependencies. Just copy the binary
 
 | Layer | Technology |
 |-------|------------|
-| Language | [Go](https://go.dev/) 1.25+ |
+| Language | [Go](https://go.dev/) 1.26+ |
 | CLI framework | [Cobra](https://github.com/spf13/cobra) |
 | LLM providers | OpenAI-compatible API (OpenAI, OpenRouter, Ollama, etc.) |
 | Telegram | Raw Bot API (no third-party SDK, standard library `net/http`) |
+| Discord | [discordgo](https://github.com/bwmarrin/discordgo) library |
 | HTTP / JSON | Go standard library only (`net/http`, `encoding/json`) |
 | Container | Alpine Linux 3.20 (multi-stage Docker build) |
 
-Picobot has **one** external dependency (`spf13/cobra` for CLI parsing). Everything else — HTTP clients, JSON handling, Telegram polling, provider integrations — uses the Go standard library.
+Picobot has **two** external dependencies (`spf13/cobra` for CLI parsing, `bwmarrin/discordgo` for Discord). Everything else — HTTP clients, JSON handling, Telegram polling, provider integrations — uses the Go standard library.
 
 ## Project Structure
 
@@ -232,7 +265,7 @@ embeds/               Embedded assets (sample skills)
 internal/
   agent/              Agent loop, context, tools, skills
   chat/               Chat message hub
-  channels/           Telegram (more coming)
+  channels/           Telegram, Discord
   config/             Config schema, loader, onboarding
   cron/               Cron scheduler
   heartbeat/          Periodic task checker
@@ -245,8 +278,8 @@ docker/               Dockerfile, compose, entrypoint
 ## Roadmap
 
 - [x] Add Telegram support
+- [x] Add Discord support
 - [ ] Add WhatsApp support
-- [ ] Add Discord support
 - [x] AI agent with skill creation capability
 - [ ] Integrate additional useful default skills
 - [ ] Add more tools (email, file processing, etc.)

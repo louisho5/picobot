@@ -22,6 +22,11 @@ Picobot is configured via `~/.picobot/config.json`. Run `picobot onboard` to gen
       "enabled": false,
       "token": "",
       "allowFrom": []
+    },
+    "discord": {
+      "enabled": false,
+      "token": "",
+      "allowFrom": []
     }
   },
   "providers": {
@@ -132,7 +137,7 @@ If no valid provider is configured, Picobot uses a **Stub** provider (echoes bac
 
 ## channels
 
-Chat channel integrations. Currently supports Telegram.
+Chat channel integrations. Supports Telegram and Discord.
 
 ### channels.telegram
 
@@ -153,6 +158,35 @@ Chat channel integrations. Currently supports Telegram.
   }
 }
 ```
+
+### channels.discord
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Set to `true` to start the Discord bot. |
+| `token` | string | `""` | Your Discord Bot token from the [Developer Portal](https://discord.com/developers/applications). |
+| `allowFrom` | string[] | `[]` | List of allowed Discord user IDs. Empty = allow all. |
+
+```json
+{
+  "channels": {
+    "discord": {
+      "enabled": true,
+      "token": "MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXX",
+      "allowFrom": ["123456789012345678"]
+    }
+  }
+}
+```
+
+The Discord bot uses the Gateway WebSocket API for receiving messages and the REST API for sending. In servers, the bot responds when **mentioned** (`@botname`) or when a message is a **reply** to the bot. In DMs, the bot responds to all messages.
+
+**Required Bot Permissions:**
+- Send Messages
+- Read Message History
+
+**Required Privileged Intents (enable in Developer Portal → Bot):**
+- Message Content Intent
 
 ---
 
@@ -192,6 +226,11 @@ The workspace directory (default `~/.picobot/workspace`) contains files that sha
       "enabled": true,
       "token": "YOUR_TELEGRAM_BOT_TOKEN",
       "allowFrom": ["YOUR_TELEGRAM_USER_ID"]
+    },
+    "discord": {
+      "enabled": true,
+      "token": "YOUR_DISCORD_BOT_TOKEN",
+      "allowFrom": ["YOUR_DISCORD_USER_ID"]
     }
   },
   "providers": {
