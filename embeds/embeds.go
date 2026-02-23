@@ -8,3 +8,8 @@ import "embed"
 //
 //go:embed skills/*
 var Skills embed.FS
+
+// UI contains the web UI frontend HTML/CSS/JS files.
+//
+//go:embed ui/*
+var UI embed.FS

@@ -160,6 +160,14 @@ The bot will respond when mentioned in servers, or to all messages in DMs.
 
 See [HOW_TO_START.md](HOW_TO_START.md) for a detailed Discord Bot walkthrough.
 
+### Web UI Integration
+
+Manage your agent through a built-in Native Web UI:
+
+1. Enable the `web` channel in the config or CLI onboarding.
+2. Navigate to `http://localhost:8192` (default port).
+3. Chat in real-time with the agent, manage Cron tasks, and configure your settings and integrations instantly.
+
 ### Heartbeat
 
 A configurable periodic check (default: 60s) that reads `HEARTBEAT.md` for scheduled tasks — like a personal cron with natural language.
@@ -194,6 +202,10 @@ Picobot uses a single JSON config at `~/.picobot/config.json`:
       "enabled": true,
       "token": "YOUR_DISCORD_BOT_TOKEN",
       "allowFrom": ["YOUR_DISCORD_USER_ID"]
+    },
+    "web": {
+      "enabled": true,
+      "port": 8192
     }
   }
 }
@@ -259,6 +271,7 @@ internal/
   memory/             Memory read/write/rank
   providers/          OpenAI-compatible provider
   session/            Session manager
+  ui/                 Web UI Server API and SSE streaming
 docker/               Dockerfile, compose, entrypoint
 ```
 
