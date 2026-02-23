@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Picobot Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>🤖 Picobot</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-target="chat-view">
+                    <span class="material-symbols-outlined">chat</span> Chat
+                </button>
+                <button class="nav-btn" data-target="settings-view">
+                    <span class="material-symbols-outlined">settings</span> Settings
+                </button>
+                <button class="nav-btn" data-target="cron-view">
+                    <span class="material-symbols-outlined">schedule</span> Cron Jobs
+                </button>
+                <button class="nav-btn" data-target="channels-view">
+                    <span class="material-symbols-outlined">hub</span> Channels
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- Chat View -->
+            <section id="chat-view" class="view-section active">
+                <div class="chat-header">
+                    <h3>Chat</h3>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message assistant">
+                        <div class="avatar">🤖</div>
+                        <div class="bubble">Hello! I am Picobot. How can I help you today?</div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <form id="chat-form">
+                        <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
+                        <button type="submit" id="send-btn">
+                            <span class="material-symbols-outlined">send</span>
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Settings View -->
+            <section id="settings-view" class="view-section">
+                <div class="view-header">
+                    <h3>Configuration</h3>
+                </div>
+                <div class="view-body">
+                    <form id="config-form" class="settings-form">
+                        <div class="card">
+                            <h4>Agent Defaults</h4>
+                            <div class="form-group">
+                                <label for="cfg-model">Model</label>
+                                <input type="text" id="cfg-model" name="agents.defaults.model">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfg-workspace">Workspace</label>
+                                <input type="text" id="cfg-workspace" name="agents.defaults.workspace">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="cfg-temp">Temperature</label>
+                                    <input type="number" step="0.1" id="cfg-temp" name="agents.defaults.temperature">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cfg-tokens">Max Tokens</label>
+                                    <input type="number" id="cfg-tokens" name="agents.defaults.maxtokens">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h4>OpenAI / OpenRouter Provider</h4>
+                            <div class="form-group">
+                                <label for="cfg-api-key">API Key</label>
+                                <input type="password" id="cfg-api-key" name="providers.openai.apikey">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfg-api-base">API Base URL</label>
+                                <input type="text" id="cfg-api-base" name="providers.openai.apibase">
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save Settings</button>
+                            <span id="config-status" class="status-msg"></span>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Cron Jobs View -->
+            <section id="cron-view" class="view-section">
+                <div class="view-header">
+                    <h3>Active Scheduled Tasks (Cron)</h3>
+                    <button id="refresh-cron" class="btn-icon"><span class="material-symbols-outlined">refresh</span></button>
+                </div>
+                <div class="view-body">
+                    <div id="cron-list" class="list-container">
+                        <!-- Cron jobs will be injected here -->
+                        <div class="empty-state">Loading cron jobs...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Channels View -->
+            <section id="channels-view" class="view-section">
+                <div class="view-header">
+                    <h3>Channel Integrations</h3>
+                </div>
+                <div class="view-body">
+                    <form id="channels-form" class="settings-form">
+                        <div class="card">
+                            <div class="channel-header">
+                                <h4>Telegram</h4>
+                                <label class="switch">
+                                    <input type="checkbox" id="cfg-tg-enabled" name="channels.telegram.enabled">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfg-tg-token">Bot Token</label>
+                                <input type="password" id="cfg-tg-token" name="channels.telegram.token">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfg-tg-allow">Allowed Users (comma-sep)</label>
+                                <input type="text" id="cfg-tg-allow" name="channels.telegram.allowfrom">
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="channel-header">
+                                <h4>Discord</h4>
+                                <label class="switch">
+                                    <input type="checkbox" id="cfg-dc-enabled" name="channels.discord.enabled">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfg-dc-token">Bot Token</label>
+                                <input type="password" id="cfg-dc-token" name="channels.discord.token">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfg-dc-allow">Allowed Users (comma-sep)</label>
+                                <input type="text" id="cfg-dc-allow" name="channels.discord.allowfrom">
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save Channels</button>
+                            <span id="channels-status" class="status-msg"></span>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

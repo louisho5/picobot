@@ -25,6 +25,7 @@ func DefaultConfig() Config {
 		Channels: ChannelsConfig{
 			Telegram: TelegramConfig{Enabled: false, Token: "", AllowFrom: []string{}},
 			Discord:  DiscordConfig{Enabled: false, Token: "", AllowFrom: []string{}},
+			Web:      WebConfig{Enabled: true, Port: 8192},
 		},
 		Providers: ProvidersConfig{
 			OpenAI: &ProviderConfig{APIKey: "sk-or-v1-REPLACE_ME", APIBase: "https://openrouter.ai/api/v1"},

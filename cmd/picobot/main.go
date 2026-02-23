@@ -23,6 +23,7 @@ import (
 	"github.com/local/picobot/internal/cron"
 	"github.com/local/picobot/internal/heartbeat"
 	"github.com/local/picobot/internal/providers"
+	"github.com/local/picobot/internal/ui"
 )
 
 const version = "0.1.0"
@@ -162,6 +163,21 @@ func NewRootCmd() *cobra.Command {
 			if cfg.Channels.Discord.Enabled {
 				if err := channels.StartDiscord(ctx, hub, cfg.Channels.Discord.Token, cfg.Channels.Discord.AllowFrom); err != nil {
 					fmt.Fprintf(os.Stderr, "failed to start discord: %v\n", err)
+				}
+			}
+
+			// start web UI if enabled
+			if cfg.Channels.Web.Enabled {
+				if cfgPath, _, err := config.ResolveDefaultPaths(); err == nil {
+					go func() {
+						port := cfg.Channels.Web.Port
+						if port == 0 {
+							port = 8192
+						}
+						if err := ui.StartServer(ctx, cfgPath, hub, scheduler, port); err != nil {
+							fmt.Fprintf(os.Stderr, "failed to start web ui: %v\n", err)
+						}
+					}()
 				}
 			}
 
