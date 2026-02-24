@@ -14,6 +14,7 @@ import (
 // For safety:
 // - prefer array form: {"cmd": ["ls", "-la"]}
 // - string form (shell) is disallowed to avoid shell injection
+// - safe allowlist enabled by default (opt out with PICOBOT_EXEC_ALLOW_UNSAFE=1)
 // - blacklist dangerous program names (rm, sudo, dd, mkfs, shutdown, reboot)
 // - arguments containing absolute paths, ~ or .. are rejected
 // - optional allowedDir enforces a working directory
@@ -63,10 +64,38 @@ var dangerous = map[string]struct{}{
 	"reboot":   {},
 }
 
+// Default safe allowlist. Set PICOBOT_EXEC_ALLOW_UNSAFE=1 to bypass this list.
+var safeExecAllowlist = map[string]struct{}{
+	"cat":    {},
+	"date":   {},
+	"echo":   {},
+	"find":   {},
+	"git":    {},
+	"grep":   {},
+	"head":   {},
+	"ls":     {},
+	"pwd":    {},
+	"rg":     {},
+	"sleep":  {},
+	"stat":   {},
+	"tail":   {},
+	"true":   {},
+	"false":  {},
+	"uname":  {},
+	"wc":     {},
+	"whoami": {},
+}
+
 func isDangerousProg(prog string) bool {
 	base := filepath.Base(prog)
 	base = strings.ToLower(base)
 	_, ok := dangerous[base]
+	return ok
+}
+
+func isSafeAllowedProg(prog string) bool {
+	base := strings.ToLower(filepath.Base(prog))
+	_, ok := safeExecAllowlist[base]
 	return ok
 }
 
@@ -106,6 +135,14 @@ func (t *ExecTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	}
 
 	prog := argv[0]
+	if !envTrue("PICOBOT_EXEC_ALLOW_UNSAFE") {
+		if strings.Contains(prog, "/") || strings.Contains(prog, "\\") {
+			return "", fmt.Errorf("exec: program path %q is disallowed; use a program name from safe allowlist", prog)
+		}
+		if !isSafeAllowedProg(prog) {
+			return "", fmt.Errorf("exec: program '%s' is not in safe allowlist; set PICOBOT_EXEC_ALLOW_UNSAFE=1 to override", prog)
+		}
+	}
 	if isDangerousProg(prog) {
 		return "", fmt.Errorf("exec: program '%s' is disallowed", prog)
 	}
