@@ -98,3 +98,29 @@ func TestExecUnsafeOverrideAllowsNonAllowlistedProgram(t *testing.T) {
 		t.Fatalf("unexpected output: %q", out)
 	}
 }
+
+func TestExecRejectsGitAliasBypassByDefault(t *testing.T) {
+	e := NewExecTool(2)
+	_, err := e.Execute(context.Background(), map[string]interface{}{
+		"cmd": []interface{}{"git", "-c", "alias.pwn=!echo bypassed", "pwn"},
+	})
+	if err == nil {
+		t.Fatalf("expected git alias bypass payload to be rejected")
+	}
+	if !strings.Contains(err.Error(), "safe allowlist") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestExecRejectsFindExecBypassByDefault(t *testing.T) {
+	e := NewExecTool(2)
+	_, err := e.Execute(context.Background(), map[string]interface{}{
+		"cmd": []interface{}{"find", ".", "-maxdepth", "0", "-exec", "sh", "-c", "echo via_find", ";"},
+	})
+	if err == nil {
+		t.Fatalf("expected find -exec payload to be rejected")
+	}
+	if !strings.Contains(err.Error(), "safe allowlist") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

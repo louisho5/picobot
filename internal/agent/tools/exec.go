@@ -66,17 +66,15 @@ var dangerous = map[string]struct{}{
 }
 
 // Default safe allowlist. Set PICOBOT_EXEC_ALLOW_UNSAFE=1 to bypass this list.
+// Shell-capable binaries (e.g. git/find/rg) are intentionally excluded.
 var safeExecAllowlist = map[string]struct{}{
 	"cat":    {},
 	"date":   {},
 	"echo":   {},
-	"find":   {},
-	"git":    {},
 	"grep":   {},
 	"head":   {},
 	"ls":     {},
 	"pwd":    {},
-	"rg":     {},
 	"sleep":  {},
 	"stat":   {},
 	"tail":   {},
