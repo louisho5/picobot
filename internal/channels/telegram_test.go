@@ -47,7 +47,7 @@ func TestStartTelegramWithBase(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if err := StartTelegramWithBase(ctx, b, token, base, nil); err != nil {
+	if err := StartTelegramWithBase(ctx, b, token, base, []string{"123"}); err != nil {
 		t.Fatalf("StartTelegramWithBase failed: %v", err)
 	}
 	// Start the hub router so outbound messages sent to b.Out are dispatched
@@ -84,4 +84,20 @@ func TestStartTelegramWithBase(t *testing.T) {
 	cancel()
 	// give a small grace period
 	time.Sleep(50 * time.Millisecond)
+}
+
+func TestStartTelegramWithBase_RejectsEmptyAllowFromByDefault(t *testing.T) {
+	token := "testtoken"
+	base := "https://example.invalid/bot" + token
+	b := chat.NewHub(1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err := StartTelegramWithBase(ctx, b, token, base, nil)
+	if err == nil {
+		t.Fatalf("expected error for empty allowFrom")
+	}
+	if !strings.Contains(err.Error(), "allowFrom is empty") {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
