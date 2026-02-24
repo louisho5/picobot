@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Go 1.21+** installed ([download](https://go.dev/dl/))
+- **Go 1.26+** installed ([download](https://go.dev/dl/))
 - An **API key** for an OpenAI-compatible service:
   - [OpenRouter](https://openrouter.ai/keys) (recommended, supports many models)
   - [OpenAI](https://platform.openai.com/api-keys)
