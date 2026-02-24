@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -135,7 +136,7 @@ func (t *ExecTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	}
 
 	prog := argv[0]
-	if !envTrue("PICOBOT_EXEC_ALLOW_UNSAFE") {
+	if !isEnvTrue("PICOBOT_EXEC_ALLOW_UNSAFE") {
 		if strings.Contains(prog, "/") || strings.Contains(prog, "\\") {
 			return "", fmt.Errorf("exec: program path %q is disallowed; use a program name from safe allowlist", prog)
 		}
@@ -171,4 +172,13 @@ func (t *ExecTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	out := string(b)
 	out = strings.TrimRight(out, "\n")
 	return out, nil
+}
+
+func isEnvTrue(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
