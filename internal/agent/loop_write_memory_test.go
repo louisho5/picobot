@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/local/picobot/internal/agent/memory"
-	"github.com/local/picobot/internal/agent/tools"
 	"github.com/local/picobot/internal/chat"
 	"github.com/local/picobot/internal/providers"
 )
@@ -32,13 +30,8 @@ func (p *toolCallingProvider) GetDefaultModel() string { return "fake-model" }
 func TestAgentExecutesWriteMemoryToolCall(t *testing.T) {
 	b := chat.NewHub(10)
 	p := &toolCallingProvider{}
-	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 5, "", nil)
-
-	// replace memory with temp workspace and re-register write_memory tool
 	tmp := t.TempDir()
-	m := memory.NewMemoryStoreWithWorkspace(tmp, 100)
-	ag.memory = m
-	ag.tools.Register(tools.NewWriteMemoryTool(m))
+	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 5, tmp, nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -57,7 +50,7 @@ func TestAgentExecutesWriteMemoryToolCall(t *testing.T) {
 		case out := <-b.Out:
 			if out.Content == "Saved, thanks." {
 				// verify today's file contains the note
-				memCtx, _ := m.ReadToday()
+				memCtx, _ := ag.memoryStoreFor("cli", "one").ReadToday()
 				if memCtx == "" || !strings.Contains(memCtx, "appointment tomorrow") {
 					t.Fatalf("expected today's memory to contain 'appointment tomorrow', got %q", memCtx)
 				}

@@ -298,10 +298,6 @@ func (a *AgentLoop) ProcessDirect(content string, timeout time.Duration) (string
 }
 
 func (a *AgentLoop) memoryStoreFor(channel, chatID string) *memory.MemoryStore {
-	// Keep CLI behavior unchanged for local single-shot usage and existing tests.
-	if channel == "cli" {
-		return a.memory
-	}
 	scope := sanitizeScopePart(channel) + "-" + sanitizeScopePart(chatID)
 	ws := filepath.Join(a.workspace, "memory_scopes", scope)
 	return memory.NewMemoryStoreWithWorkspace(ws, 100)

@@ -22,7 +22,7 @@ func (f *FailingProvider) GetDefaultModel() string { return "fail" }
 func TestAgentRemembersToday(t *testing.T) {
 	b := chat.NewHub(10)
 	p := &FailingProvider{}
-	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 5, "", nil)
+	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 5, t.TempDir(), nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -41,7 +41,7 @@ func TestAgentRemembersToday(t *testing.T) {
 		case out := <-b.Out:
 			if out.Content == "OK, I've remembered that." {
 				// success; verify today's file contains the note
-				memCtx, _ := ag.memory.ReadToday()
+				memCtx, _ := ag.memoryStoreFor("cli", "one").ReadToday()
 				if memCtx == "" || !strings.Contains(memCtx, "buy milk") {
 					t.Fatalf("expected today's memory to contain 'buy milk', got %q", memCtx)
 				}

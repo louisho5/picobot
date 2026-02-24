@@ -46,6 +46,14 @@ func (p *scopedMemoryProvider) Chat(ctx context.Context, messages []providers.Me
 func (p *scopedMemoryProvider) GetDefaultModel() string { return "test" }
 
 func TestAgentMemoryIsScopedByChannelAndChat(t *testing.T) {
+	runScopedMemoryLeakCheck(t, "telegram")
+}
+
+func TestAgentMemoryIsScopedForCLIChatIDs(t *testing.T) {
+	runScopedMemoryLeakCheck(t, "cli")
+}
+
+func runScopedMemoryLeakCheck(t *testing.T, channel string) {
 	hub := chat.NewHub(10)
 	prov := &scopedMemoryProvider{secret: "top-secret-123"}
 	workspace := t.TempDir()
@@ -56,7 +64,7 @@ func TestAgentMemoryIsScopedByChannelAndChat(t *testing.T) {
 	go ag.Run(ctx)
 
 	// First chat writes a secret via write_memory tool.
-	hub.In <- chat.Inbound{Channel: "telegram", SenderID: "u1", ChatID: "chat-A", Content: "store secret please"}
+	hub.In <- chat.Inbound{Channel: channel, SenderID: "u1", ChatID: "chat-A", Content: "store secret please"}
 	select {
 	case out := <-hub.Out:
 		if out.Content != "saved" {
@@ -67,7 +75,7 @@ func TestAgentMemoryIsScopedByChannelAndChat(t *testing.T) {
 	}
 
 	// Second chat should not see first chat's memory.
-	hub.In <- chat.Inbound{Channel: "telegram", SenderID: "u2", ChatID: "chat-B", Content: "what do you know?"}
+	hub.In <- chat.Inbound{Channel: channel, SenderID: "u2", ChatID: "chat-B", Content: "what do you know?"}
 	select {
 	case out := <-hub.Out:
 		if out.Content != "ok" {

@@ -41,7 +41,7 @@ func (p *writeMemoryCallingProvider) GetDefaultModel() string { return "test" }
 func TestProcessDirectExecutesToolCall(t *testing.T) {
 	b := chat.NewHub(10)
 	prov := &writeMemoryCallingProvider{}
-	ag := NewAgentLoop(b, prov, prov.GetDefaultModel(), 5, "", nil)
+	ag := NewAgentLoop(b, prov, prov.GetDefaultModel(), 5, t.TempDir(), nil)
 
 	resp, err := ag.ProcessDirect("please remember Test note", 2*time.Second)
 	if err != nil {
@@ -52,7 +52,7 @@ func TestProcessDirectExecutesToolCall(t *testing.T) {
 	}
 
 	// Verify memory was written to today's note
-	mem := ag.memory
+	mem := ag.memoryStoreFor("cli", "direct")
 	td, err := mem.ReadToday()
 	if err != nil {
 		t.Fatalf("reading today failed: %v", err)

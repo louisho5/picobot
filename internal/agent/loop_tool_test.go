@@ -31,7 +31,7 @@ func (f *FakeProvider) GetDefaultModel() string { return "fake" }
 func TestAgentExecutesToolCall(t *testing.T) {
 	b := chat.NewHub(10)
 	p := &FakeProvider{}
-	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 3, "", nil)
+	ag := NewAgentLoop(b, p, p.GetDefaultModel(), 3, t.TempDir(), nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
