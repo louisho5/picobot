@@ -43,6 +43,8 @@ func (p *webCallingProvider) Chat(ctx context.Context, messages []providers.Mess
 func (p *webCallingProvider) GetDefaultModel() string { return "test" }
 
 func TestAgentExecutesWebToolCall(t *testing.T) {
+	t.Setenv("PICOBOT_WEB_ALLOW_PRIVATE", "1")
+
 	// create a real server to fetch
 	h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
