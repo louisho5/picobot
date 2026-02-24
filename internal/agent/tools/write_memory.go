@@ -3,17 +3,26 @@ package tools
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/local/picobot/internal/agent/memory"
 )
 
 // WriteMemoryTool writes to the agent's memory (today's note or long-term MEMORY.md)
 type WriteMemoryTool struct {
+	mu  sync.RWMutex
 	mem *memory.MemoryStore
 }
 
 func NewWriteMemoryTool(mem *memory.MemoryStore) *WriteMemoryTool {
 	return &WriteMemoryTool{mem: mem}
+}
+
+// SetStore switches the active memory store used by this tool.
+func (w *WriteMemoryTool) SetStore(mem *memory.MemoryStore) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.mem = mem
 }
 
 func (w *WriteMemoryTool) Name() string { return "write_memory" }
@@ -47,6 +56,13 @@ func (w *WriteMemoryTool) Parameters() map[string]interface{} {
 // Expected args:
 // {"target": "today"|"long", "content": "...", "append": true|false }
 func (w *WriteMemoryTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	w.mu.RLock()
+	mem := w.mem
+	w.mu.RUnlock()
+	if mem == nil {
+		return "", fmt.Errorf("write_memory: memory store is not configured")
+	}
+
 	targetI, ok := args["target"]
 	if !ok {
 		return "", fmt.Errorf("write_memory: 'target' argument required (today|long)")
@@ -72,23 +88,23 @@ func (w *WriteMemoryTool) Execute(ctx context.Context, args map[string]interface
 
 	switch target {
 	case "today":
-		if err := w.mem.AppendToday(content); err != nil {
+		if err := mem.AppendToday(content); err != nil {
 			return "", err
 		}
 		return "appended to today", nil
 	case "long":
 		if appendFlag {
-			prev, err := w.mem.ReadLongTerm()
+			prev, err := mem.ReadLongTerm()
 			if err != nil {
 				return "", err
 			}
 			new := prev + "\n" + content
-			if err := w.mem.WriteLongTerm(new); err != nil {
+			if err := mem.WriteLongTerm(new); err != nil {
 				return "", err
 			}
 			return "appended to long-term memory", nil
 		}
-		if err := w.mem.WriteLongTerm(content); err != nil {
+		if err := mem.WriteLongTerm(content); err != nil {
 			return "", err
 		}
 		return "wrote long-term memory", nil
