@@ -22,6 +22,23 @@ const (
 	maxWebRedirects        = 10
 )
 
+var blockedIPv4Prefixes = []netip.Prefix{
+	netip.MustParsePrefix("0.0.0.0/8"),       // "this network"
+	netip.MustParsePrefix("100.64.0.0/10"),   // shared address space (CGNAT)
+	netip.MustParsePrefix("192.0.0.0/24"),    // IETF protocol assignments
+	netip.MustParsePrefix("192.0.2.0/24"),    // TEST-NET-1
+	netip.MustParsePrefix("198.18.0.0/15"),   // benchmarking
+	netip.MustParsePrefix("198.51.100.0/24"), // TEST-NET-2
+	netip.MustParsePrefix("203.0.113.0/24"),  // TEST-NET-3
+	netip.MustParsePrefix("240.0.0.0/4"),     // reserved + limited broadcast
+}
+
+var blockedIPv6Prefixes = []netip.Prefix{
+	netip.MustParsePrefix("100::/64"),      // discard-only
+	netip.MustParsePrefix("2001:2::/48"),   // benchmarking
+	netip.MustParsePrefix("2001:db8::/32"), // documentation
+}
+
 type WebTool struct {
 	client       *http.Client
 	maxBodyBytes int64
@@ -149,10 +166,10 @@ func (t *WebTool) validateTarget(u *url.URL) error {
 		return fmt.Errorf("web: URL host is required")
 	}
 	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
-		return fmt.Errorf("web: private/loopback targets are blocked")
+		return fmt.Errorf("web: private/special-use targets are blocked")
 	}
 	if ip, err := netip.ParseAddr(host); err == nil && isPrivateOrLocalIP(ip) {
-		return fmt.Errorf("web: private/loopback targets are blocked")
+		return fmt.Errorf("web: private/special-use targets are blocked")
 	}
 	return nil
 }
@@ -170,12 +187,12 @@ func (t *WebTool) dialContext(ctx context.Context, network, addr string) (net.Co
 	host = strings.TrimSpace(host)
 	lowerHost := strings.ToLower(host)
 	if lowerHost == "localhost" || strings.HasSuffix(lowerHost, ".localhost") {
-		return nil, fmt.Errorf("web: private/loopback targets are blocked")
+		return nil, fmt.Errorf("web: private/special-use targets are blocked")
 	}
 
 	if ip, err := netip.ParseAddr(host); err == nil {
 		if isPrivateOrLocalIP(ip) {
-			return nil, fmt.Errorf("web: private/loopback targets are blocked")
+			return nil, fmt.Errorf("web: private/special-use targets are blocked")
 		}
 		return dialer.DialContext(ctx, network, addr)
 	}
@@ -209,7 +226,7 @@ func (t *WebTool) dialContext(ctx context.Context, network, addr string) (net.Co
 	}
 
 	if !publicFound {
-		return nil, fmt.Errorf("web: host %q resolves only to private/loopback addresses", host)
+		return nil, fmt.Errorf("web: host %q resolves only to private/special-use addresses", host)
 	}
 	if lastErr != nil {
 		return nil, lastErr
@@ -219,12 +236,31 @@ func (t *WebTool) dialContext(ctx context.Context, network, addr string) (net.Co
 
 func isPrivateOrLocalIP(ip netip.Addr) bool {
 	ip = ip.Unmap()
-	return ip.IsLoopback() ||
+	if ip.IsLoopback() ||
 		ip.IsPrivate() ||
 		ip.IsLinkLocalUnicast() ||
 		ip.IsLinkLocalMulticast() ||
 		ip.IsMulticast() ||
-		ip.IsUnspecified()
+		ip.IsUnspecified() {
+		return true
+	}
+
+	if ip.Is4() {
+		return containsPrefix(ip, blockedIPv4Prefixes)
+	}
+	if ip.Is6() {
+		return containsPrefix(ip, blockedIPv6Prefixes)
+	}
+	return false
+}
+
+func containsPrefix(ip netip.Addr, prefixes []netip.Prefix) bool {
+	for _, p := range prefixes {
+		if p.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func envTrue(key string) bool {
