@@ -207,7 +207,7 @@ Send a message to the current channel/chat.
 ## Memory
 
 ### write_memory
-Persist information to memory files.
+Persist information to memory files. Never store redundant information like heartbeat logs.
 - target: "today" (daily notes) or "long" (long-term memory)
 - content: what to remember
 - append: true to add, false to replace
