@@ -27,6 +27,11 @@ Picobot is configured via `~/.picobot/config.json`. Run `picobot onboard` to gen
       "enabled": false,
       "token": "",
       "allowFrom": []
+    },
+    "whatsapp": {
+      "enabled": false,
+      "dbPath": "",
+      "allowFrom": []
     }
   },
   "providers": {
@@ -137,7 +142,7 @@ If no valid provider is configured, Picobot uses a **Stub** provider (echoes bac
 
 ## channels
 
-Chat channel integrations. Supports Telegram and Discord.
+Chat channel integrations. Supports Telegram, Discord, and WhatsApp.
 
 ### channels.telegram
 
@@ -187,6 +192,69 @@ The Discord bot uses the Gateway WebSocket API for receiving messages and the RE
 
 **Required Privileged Intents (enable in Developer Portal → Bot):**
 - Message Content Intent
+
+### channels.whatsapp
+
+Uses a personal WhatsApp account (via [whatsmeow](https://go.mau.fi/whatsmeow)) rather than a dedicated bot account. Only direct messages are handled — group messages are ignored.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Set to `true` to start the WhatsApp channel. |
+| `dbPath` | string | `~/.picobot/whatsapp.db` | Path to the SQLite session database. Created automatically by `picobot onboard whatsapp`. |
+| `allowFrom` | string[] | `[]` | List of **LID numbers** allowed to send messages. Empty `[]` = allow everyone. See below. |
+
+```json
+{
+  "channels": {
+    "whatsapp": {
+      "enabled": true,
+      "dbPath": "~/.picobot/whatsapp.db",
+      "allowFrom": ["12345678901234"]
+    }
+  }
+}
+```
+
+**One-time setup:** Link your phone by running:
+```
+picobot onboard whatsapp
+```
+This shows a QR code. In WhatsApp on your phone: **Settings → Linked Devices → Link a Device**. The session is saved to `dbPath` — no QR code is needed on subsequent starts. The config is updated automatically.
+
+#### Finding your LID for allowFrom
+
+Modern WhatsApp accounts use an internal **LID** (Linked ID) — a numeric identifier that is different from the phone number. Picobot routes messages using LIDs, so `allowFrom` must contain LID numbers, not phone numbers.
+
+**How to find your LID:**
+
+Start the gateway after pairing and check the startup log:
+
+```
+whatsapp: connected as 85298765432 (LID: 12345678901234)
+```
+
+The number after `LID:` is this device's own LID. To find the LID of another person you want to allow, ask them to send you a message, then check the picobot log:
+
+```
+whatsapp: dropped message from unauthorized sender 99999999999@lid (add '99999999999' to allowFrom to permit)
+```
+
+The number in the log is the sender's LID. Add that number to `allowFrom`.
+
+**Examples:**
+
+| Scenario | `allowFrom` value |
+|----------|-------------------|
+| Allow only yourself (Notes to Self) | `[]` *(self-chat is always allowed regardless)* |
+| Allow one other person | `["12345678901234"]` |
+| Allow multiple people | `["12345678901234", "99999999999"]` |
+| Allow everyone | `[]` |
+
+> **Why not phone numbers?** Newer WhatsApp accounts use LID-based addressing internally. If you put a phone number in `allowFrom`, messages from that person will be silently dropped because WhatsApp delivers them with a LID, not the phone number.
+
+> **Self-chat (Notes to Self):** Your own messages to yourself always bypass the `allowFrom` list — no entry needed.
+
+> **Note:** Unlike Telegram/Discord bots, WhatsApp uses a personal phone number. Messages are sent and received from that number.
 
 ---
 

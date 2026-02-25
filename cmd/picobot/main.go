@@ -41,9 +41,9 @@ func NewRootCmd() *cobra.Command {
 		},
 	})
 
-	rootCmd.AddCommand(&cobra.Command{
+	onboardCmd := &cobra.Command{
 		Use:   "onboard",
-		Short: "Create default config and workspace",
+		Short: "Create default config and workspace, or onboard a specific channel",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfgPath, workspacePath, err := config.Onboard()
 			if err != nil {
@@ -52,7 +52,48 @@ func NewRootCmd() *cobra.Command {
 			}
 			fmt.Printf("Wrote config to %s\nInitialized workspace at %s\n", cfgPath, workspacePath)
 		},
+	}
+
+	onboardCmd.AddCommand(&cobra.Command{
+		Use:   "whatsapp",
+		Short: "Setup WhatsApp authentication (shows QR code)",
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg, err := config.LoadConfig()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "failed to load config: %v\n", err)
+				return
+			}
+			dbPath := cfg.Channels.WhatsApp.DBPath
+			if dbPath == "" {
+				dbPath = "~/.picobot/whatsapp.db"
+			}
+			// Expand home directory
+			home, _ := os.UserHomeDir()
+			if strings.HasPrefix(dbPath, "~/") {
+				dbPath = filepath.Join(home, dbPath[2:])
+			}
+			if err := channels.SetupWhatsApp(dbPath); err != nil {
+				fmt.Fprintf(os.Stderr, "WhatsApp setup failed: %v\n", err)
+				return
+			}
+
+			// Activate the channel in config.json automatically.
+			cfg.Channels.WhatsApp.Enabled = true
+			cfg.Channels.WhatsApp.DBPath = dbPath
+			cfgPath, _, err := config.ResolveDefaultPaths()
+			if err == nil {
+				if saveErr := config.SaveConfig(cfg, cfgPath); saveErr != nil {
+					fmt.Fprintf(os.Stderr, "warning: could not save config: %v\n", saveErr)
+				} else {
+					fmt.Printf("Config updated: whatsapp enabled, dbPath set to %s\n", dbPath)
+				}
+			}
+
+			fmt.Println("\nWhatsApp setup complete! Run 'picobot gateway' to start.")
+		},
 	})
+
+	rootCmd.AddCommand(onboardCmd)
 
 	agentCmd := &cobra.Command{
 		Use:   "agent",
@@ -162,6 +203,22 @@ func NewRootCmd() *cobra.Command {
 			if cfg.Channels.Discord.Enabled {
 				if err := channels.StartDiscord(ctx, hub, cfg.Channels.Discord.Token, cfg.Channels.Discord.AllowFrom); err != nil {
 					fmt.Fprintf(os.Stderr, "failed to start discord: %v\n", err)
+				}
+			}
+
+			// start whatsapp if enabled
+			if cfg.Channels.WhatsApp.Enabled {
+				dbPath := cfg.Channels.WhatsApp.DBPath
+				if dbPath == "" {
+					dbPath = "~/.picobot/whatsapp.db"
+				}
+				// Expand home directory
+				if strings.HasPrefix(dbPath, "~/") {
+					home, _ := os.UserHomeDir()
+					dbPath = filepath.Join(home, dbPath[2:])
+				}
+				if err := channels.StartWhatsApp(ctx, hub, dbPath, cfg.Channels.WhatsApp.AllowFrom); err != nil {
+					fmt.Fprintf(os.Stderr, "failed to start whatsapp: %v\n", err)
 				}
 			}
 

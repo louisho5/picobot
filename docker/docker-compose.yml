@@ -21,5 +21,5 @@ services:
       # Optional: Comma-separated Discord user IDs allowed to chat
       - DISCORD_ALLOW_FROM=${DISCORD_ALLOW_FROM:-}
     volumes:
-      # Persist config, workspace, memory, and skills across restarts
+      # Persist config, workspace, memory, skills, and WhatsApp session DB
       - ./picobot-data:/home/picobot/.picobot

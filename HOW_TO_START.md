@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Go 1.21+** installed ([download](https://go.dev/dl/))
+- **Go 1.26+** installed ([download](https://go.dev/dl/))
 - An **API key** for an OpenAI-compatible service:
   - [OpenRouter](https://openrouter.ai/keys) (recommended, supports many models)
   - [OpenAI](https://platform.openai.com/api-keys)
@@ -276,6 +276,112 @@ Now mention your bot in a Discord server (`@Picobot hello!`) or send it a DM. Pi
 **How the bot responds:**
 - **In servers** — only when @-mentioned (e.g. `@Picobot what's the weather?`)
 - **In DMs** — responds to every message
+
+---
+
+## Setting Up WhatsApp
+
+Picobot can receive and reply to WhatsApp messages. It uses [whatsmeow](https://github.com/tulir/whatsmeow) — a Go implementation of the WhatsApp Web protocol, so no phone stays open; the session is stored in a local SQLite database.
+
+> **One-time pairing is required.** You need physical access to the phone that will be linked. After pairing, the bot runs headlessly.
+
+### 1. Run the Onboard Command
+
+```sh
+./picobot onboard whatsapp
+```
+
+This will:
+1. Display a QR code in the terminal
+2. Wait for you to scan it with WhatsApp on your phone:
+   - Open WhatsApp → **Settings** → **Linked Devices** → **Link a Device**
+3. Sync with the phone (takes ~15 seconds)
+4. **Automatically update** `~/.picobot/config.json` with `enabled: true` and the correct `dbPath`
+
+You should see:
+
+```
+Scan the QR code below with WhatsApp on your phone:
+(Open WhatsApp > Settings > Linked Devices > Link a Device)
+
+[QR code appears here]
+
+Pairing successful, finishing setup...
+Syncing with phone...
+Successfully authenticated!
+Logged in as: 85298765432
+
+WhatsApp setup complete! Run 'picobot gateway' to start.
+```
+
+### 2. Find Your Sender ID (LID)
+
+Modern WhatsApp accounts use an internal **LID** (Linked ID) number instead of the phone number for message routing. When you start the gateway the first time, it logs both:
+
+```
+whatsapp: connected as 85298765432 (LID: 169032883908635)
+```
+
+Use the **LID number** (e.g. `169032883908635`) in `allowFrom` — not the phone number.
+
+> **Why?** WhatsApp internally addresses messages with the LID on newer accounts. If you use the phone number in `allowFrom`, messages will be silently dropped.
+
+### 3. Configure allowFrom
+
+Edit `~/.picobot/config.json` to set who can send messages:
+
+```json
+{
+  "channels": {
+    "whatsapp": {
+      "enabled": true,
+      "dbPath": "/Users/you/.picobot/whatsapp.db",
+      "allowFrom": ["169032883908635"]
+    }
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `enabled` | `true` to activate the WhatsApp channel |
+| `dbPath` | Path to the SQLite session file (auto-set by `picobot onboard whatsapp`) |
+| `allowFrom` | List of LID numbers allowed to send messages. Empty `[]` = anyone can send |
+
+**To allow yourself only**, add your own LID. **To allow all**, leave `allowFrom` as `[]`.
+
+### 4. Texting Yourself (Notes to Self)
+
+You can use WhatsApp's **"Notes to Self"** chat to interact with Picobot — just open your own name in WhatsApp contacts and send a message. Self-chat always bypasses the `allowFrom` list.
+
+### 5. Start the Gateway
+
+```sh
+./picobot gateway
+```
+
+You should see:
+
+```
+whatsapp: connected as 85298765432 (LID: 169032883908635)
+```
+
+Send a message from your allowed number (or from Notes to Self) — Picobot will reply.
+
+### Running in Docker
+
+WhatsApp requires a **one-time interactive QR scan** before the bot can run headlessly. Use `docker-compose run` with a TTY for the initial pairing:
+
+```sh
+# Step 1: Pair (interactive — scan the QR with your phone)
+docker compose run --rm -it picobot onboard whatsapp
+# The SQLite session DB is saved into ./picobot-data/
+
+# Step 2: Start normally
+docker compose up -d
+```
+
+The session is stored in the `./picobot-data` volume — as long as that directory persists, you won't need to re-scan the QR code.
 
 ---
 

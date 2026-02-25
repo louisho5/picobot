@@ -25,6 +25,7 @@ func DefaultConfig() Config {
 		Channels: ChannelsConfig{
 			Telegram: TelegramConfig{Enabled: false, Token: "", AllowFrom: []string{}},
 			Discord:  DiscordConfig{Enabled: false, Token: "", AllowFrom: []string{}},
+			WhatsApp: WhatsAppConfig{Enabled: false, DBPath: "", AllowFrom: []string{}},
 		},
 		Providers: ProvidersConfig{
 			OpenAI: &ProviderConfig{APIKey: "sk-or-v1-REPLACE_ME", APIBase: "https://openrouter.ai/api/v1"},
@@ -109,6 +110,7 @@ Never create files directly in the workspace root. Always use a project folder.
 - Use the write_memory tool with target "today" for daily notes
 - Use the write_memory tool with target "long" for long-term information
 - Do NOT just say you'll remember something — actually call write_memory
+- Do NOT use write_memory tool for redundant information like heartbeat logs
 
 ## Skills
 

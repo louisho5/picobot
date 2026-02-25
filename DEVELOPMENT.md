@@ -96,8 +96,24 @@ GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o picobot_linux
 # macOS ARM64 (Apple Silicon)
 GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o picobot_mac_arm64 ./cmd/picobot
 
-# Windows (if you're into that)
+# Windows
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o picobot.exe ./cmd/picobot
+```
+
+Build for 'lite' version (Include almost all feature only remove large packages like WhatsApp):
+
+```sh
+# Linux AMD64 (most VPS / servers)
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -tags lite -o picobot_linux_amd64 ./cmd/picobot
+
+# Linux ARM64 (Raspberry Pi, ARM servers)
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -tags lite -o picobot_linux_arm64 ./cmd/picobot
+
+# macOS ARM64 (Apple Silicon)
+GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -tags lite -o picobot_mac_arm64 ./cmd/picobot
+
+# Windows
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -tags lite -o picobot.exe ./cmd/picobot
 ```
 
 **What the flags do:**

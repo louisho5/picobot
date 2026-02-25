@@ -8,6 +8,7 @@ ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETVARIANT
 
+# Pure-Go build: no CGO, no gcc needed (modernc.org/sqlite replaces go-sqlite3)
 RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /src
