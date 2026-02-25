@@ -495,10 +495,11 @@ WhatsApp requires a **one-time interactive QR scan** before the bot can run head
 ```sh
 # Step 1: Pair (interactive — scan the QR with your phone)
 docker compose run --rm -it picobot channels login
-# Select 3) WhatsApp and scan the QR code.
+# Select "3" for WhatsApp and scan the QR code.
 # The SQLite session DB is saved into ./picobot-data/
 
-# Step 2: Start normally
+# Step 2: Re-start container
+docker compose down 
 docker compose up -d
 ```
 
