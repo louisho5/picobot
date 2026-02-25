@@ -17,7 +17,8 @@ import (
 // StartTelegram is a convenience wrapper that uses the real polling implementation
 // with the standard Telegram base URL.
 // allowFrom is a list of Telegram user IDs permitted to interact with the bot.
-// If empty, ALL users are allowed (open mode).
+// Empty allowFrom is rejected by default; set PICOBOT_ALLOW_PUBLIC_CHANNELS=1
+// to opt into open mode.
 func StartTelegram(ctx context.Context, hub *chat.Hub, token string, allowFrom []string) error {
 	if token == "" {
 		return fmt.Errorf("telegram token not provided")
@@ -27,10 +28,14 @@ func StartTelegram(ctx context.Context, hub *chat.Hub, token string, allowFrom [
 }
 
 // StartTelegramWithBase starts long-polling against the given base URL (e.g., https://api.telegram.org/bot<TOKEN> or a test server URL).
-// allowFrom restricts which Telegram user IDs may send messages. Empty means allow all.
+// allowFrom restricts which Telegram user IDs may send messages.
+// Empty allowFrom is rejected by default unless PICOBOT_ALLOW_PUBLIC_CHANNELS=1.
 func StartTelegramWithBase(ctx context.Context, hub *chat.Hub, token, base string, allowFrom []string) error {
 	if base == "" {
 		return fmt.Errorf("base URL is required")
+	}
+	if len(allowFrom) == 0 && !allowPublicChannels() {
+		return fmt.Errorf("telegram allowFrom is empty; configure allowFrom or set %s=1 to opt into open mode", allowPublicChannelsEnv)
 	}
 
 	// Build a fast lookup set for allowed user IDs.
