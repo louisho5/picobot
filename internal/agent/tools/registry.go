@@ -2,8 +2,11 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log"
 	"sync"
+	"time"
 
 	"github.com/local/picobot/internal/providers"
 )
@@ -69,5 +72,20 @@ func (r *Registry) Execute(ctx context.Context, name string, args map[string]int
 	if !ok {
 		return "", errors.New("tool not found")
 	}
-	return t.Execute(ctx, args)
+
+	// Log tool execution start
+	argsJSON, _ := json.Marshal(args)
+	log.Printf("[tool] → %s %s", name, argsJSON)
+	start := time.Now()
+
+	result, err := t.Execute(ctx, args)
+	elapsed := time.Since(start).Round(time.Millisecond)
+
+	if err != nil {
+		log.Printf("[tool] ✗ %s failed after %s: %v", name, elapsed, err)
+		return "", err
+	}
+
+	log.Printf("[tool] ✓ %s completed in %s (%d bytes)", name, elapsed, len(result))
+	return result, nil
 }
