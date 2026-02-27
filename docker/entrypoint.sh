@@ -60,5 +60,17 @@ if [ -n "${PICOBOT_MODEL}" ]; then
   jq --arg model "${PICOBOT_MODEL}" '.agents.defaults.model = $model' "${CONFIG}" > "$TMP" && mv "$TMP" "${CONFIG}"
 fi
 
+if [ -n "${PICOBOT_MAX_TOKENS}" ]; then
+  echo "Applying PICOBOT_MAX_TOKENS from environment..."
+  TMP=$(mktemp)
+  jq --argjson tokens "${PICOBOT_MAX_TOKENS}" '.agents.defaults.maxTokens = $tokens' "${CONFIG}" > "$TMP" && mv "$TMP" "${CONFIG}"
+fi
+
+if [ -n "${PICOBOT_MAX_TOOL_ITERATIONS}" ]; then
+  echo "Applying PICOBOT_MAX_TOOL_ITERATIONS from environment..."
+  TMP=$(mktemp)
+  jq --argjson iter "${PICOBOT_MAX_TOOL_ITERATIONS}" '.agents.defaults.maxToolIterations = $iter' "${CONFIG}" > "$TMP" && mv "$TMP" "${CONFIG}"
+fi
+
 echo "Starting picobot $@..."
 exec picobot "$@"
