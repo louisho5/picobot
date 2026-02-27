@@ -18,6 +18,21 @@ import (
 
 var rememberRE = regexp.MustCompile(`(?i)^remember(?:\s+to)?\s+(.+)$`)
 
+// isSystemChannel reports whether a channel is a background/system trigger
+// (heartbeat, cron) rather than an interactive user-facing channel.
+// Messages from system channels are processed statelessly: no session history
+// is loaded as context and nothing is written back to disk.  This prevents the
+// heartbeat session file from growing unboundedly and keeps each invocation's
+// context window small.
+func isSystemChannel(channel string) bool {
+	switch channel {
+	case "heartbeat", "cron":
+		return true
+	default:
+		return false
+	}
+}
+
 // AgentLoop is the core processing loop; it holds an LLM provider, tools, sessions and context builder.
 type AgentLoop struct {
 	hub           *chat.Hub
@@ -113,11 +128,13 @@ func (a *AgentLoop) Run(ctx context.Context) {
 				default:
 					log.Println("Outbound channel full, dropping message")
 				}
-				// save to session as well
-				session := a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
-				session.AddMessage("user", msg.Content)
-				session.AddMessage("assistant", "OK, I've remembered that.")
-				a.sessions.Save(session)
+				// Only save session for interactive channels, not system triggers.
+				if !isSystemChannel(msg.Channel) {
+					sess := a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
+					sess.AddMessage("user", msg.Content)
+					sess.AddMessage("assistant", "OK, I've remembered that.")
+					a.sessions.Save(sess)
+				}
 				continue
 			}
 
@@ -133,12 +150,19 @@ func (a *AgentLoop) Run(ctx context.Context) {
 				}
 			}
 
-			// Build messages from session, long-term memory, and recent memory
-			session := a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
+			// Build messages from session, long-term memory, and recent memory.
+			// System channels (heartbeat, cron) get a blank ephemeral session so
+			// their history never accumulates and bloats the context window.
+			var sess *session.Session
+			if isSystemChannel(msg.Channel) {
+				sess = &session.Session{Key: msg.Channel + ":" + msg.ChatID}
+			} else {
+				sess = a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
+			}
 			// get file-backed memory context (long-term + today)
 			memCtx, _ := a.memory.GetMemoryContext()
 			memories := a.memory.Recent(5)
-			messages := a.context.BuildMessages(session.GetHistory(), msg.Content, msg.Channel, msg.ChatID, memCtx, memories)
+			messages := a.context.BuildMessages(sess.GetHistory(), msg.Content, msg.Channel, msg.ChatID, memCtx, memories)
 
 			iteration := 0
 			finalContent := ""
@@ -179,10 +203,14 @@ func (a *AgentLoop) Run(ctx context.Context) {
 				finalContent = "I've completed processing but have no response to give."
 			}
 
-			// Save session
-			session.AddMessage("user", msg.Content)
-			session.AddMessage("assistant", finalContent)
-			a.sessions.Save(session)
+			// Save session for interactive channels only.
+			// System channels (heartbeat, cron) are stateless triggers — their
+			// history must not be persisted, otherwise the file grows unboundedly.
+			if !isSystemChannel(msg.Channel) {
+				sess.AddMessage("user", msg.Content)
+				sess.AddMessage("assistant", finalContent)
+				a.sessions.Save(sess)
+			}
 
 			out := chat.Outbound{Channel: msg.Channel, ChatID: msg.ChatID, Content: finalContent}
 			select {
@@ -202,6 +230,19 @@ func (a *AgentLoop) Run(ctx context.Context) {
 func (a *AgentLoop) ProcessDirect(content string, timeout time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	// Set tool context so message/cron tools know the originating channel,
+	// matching what Run() does for hub-based messages.
+	if mt := a.tools.Get("message"); mt != nil {
+		if mtool, ok := mt.(interface{ SetContext(string, string) }); ok {
+			mtool.SetContext("cli", "direct")
+		}
+	}
+	if ct := a.tools.Get("cron"); ct != nil {
+		if ctool, ok := ct.(interface{ SetContext(string, string) }); ok {
+			ctool.SetContext("cli", "direct")
+		}
+	}
 
 	// Build full context (bootstrap files, skills, memory) just like the main loop
 	memCtx, _ := a.memory.GetMemoryContext()

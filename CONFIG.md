@@ -13,13 +13,24 @@ Picobot is configured via `~/.picobot/config.json`. Run `picobot onboard` to gen
       "maxTokens": 8192,
       "temperature": 0.7,
       "maxToolIterations": 100,
-      "heartbeatIntervalS": 60
+      "heartbeatIntervalS": 60,
+      "requestTimeoutS": 60
     }
   },
   "channels": {
     "telegram": {
       "enabled": false,
       "token": "",
+      "allowFrom": []
+    },
+    "discord": {
+      "enabled": false,
+      "token": "",
+      "allowFrom": []
+    },
+    "whatsapp": {
+      "enabled": false,
+      "dbPath": "",
       "allowFrom": []
     }
   },
@@ -46,6 +57,7 @@ Agent behavior settings.
 | `temperature` | float | `0.7` | LLM temperature (0.0 = deterministic, 1.0 = creative). |
 | `maxToolIterations` | int | `100` | Maximum number of tool-calling iterations per request. Prevents infinite loops. |
 | `heartbeatIntervalS` | int | `60` | How often (in seconds) the heartbeat checks `HEARTBEAT.md` for periodic tasks. Only used in gateway mode. |
+| `requestTimeoutS` | int | `60` | HTTP timeout in seconds for each LLM API request. Increase for slow models or poor network conditions. |
 
 ### Model Priority
 
@@ -65,7 +77,8 @@ The model is resolved in this order:
       "maxTokens": 16384,
       "temperature": 0.5,
       "maxToolIterations": 200,
-      "heartbeatIntervalS": 120
+      "heartbeatIntervalS": 120,
+      "requestTimeoutS": 120
     }
   }
 }
@@ -129,7 +142,7 @@ If no valid provider is configured, Picobot uses a **Stub** provider (echoes bac
 
 ## channels
 
-Chat channel integrations. Currently supports Telegram.
+Chat channel integrations. Supports Telegram, Discord, and WhatsApp.
 
 ### channels.telegram
 
@@ -150,6 +163,98 @@ Chat channel integrations. Currently supports Telegram.
   }
 }
 ```
+
+### channels.discord
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Set to `true` to start the Discord bot. |
+| `token` | string | `""` | Your Discord Bot token from the [Developer Portal](https://discord.com/developers/applications). |
+| `allowFrom` | string[] | `[]` | List of allowed Discord user IDs. Empty = allow all. |
+
+```json
+{
+  "channels": {
+    "discord": {
+      "enabled": true,
+      "token": "MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXX",
+      "allowFrom": ["123456789012345678"]
+    }
+  }
+}
+```
+
+The Discord bot uses the Gateway WebSocket API for receiving messages and the REST API for sending. In servers, the bot responds when **mentioned** (`@botname`) or when a message is a **reply** to the bot. In DMs, the bot responds to all messages.
+
+**Required Bot Permissions:**
+- Send Messages
+- Read Message History
+
+**Required Privileged Intents (enable in Developer Portal → Bot):**
+- Message Content Intent
+
+### channels.whatsapp
+
+Uses a personal WhatsApp account (via [whatsmeow](https://go.mau.fi/whatsmeow)) rather than a dedicated bot account. Only direct messages are handled — group messages are ignored.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Set to `true` to start the WhatsApp channel. |
+| `dbPath` | string | `~/.picobot/whatsapp.db` | Path to the SQLite session database. Created automatically by `picobot channels login`. |
+| `allowFrom` | string[] | `[]` | List of **LID numbers** allowed to send messages. Empty `[]` = allow everyone. See below. |
+
+```json
+{
+  "channels": {
+    "whatsapp": {
+      "enabled": true,
+      "dbPath": "~/.picobot/whatsapp.db",
+      "allowFrom": ["12345678901234"]
+    }
+  }
+}
+```
+
+**One-time setup:** Link your phone by running:
+```
+picobot channels login
+```
+Select **3) WhatsApp**. This shows a QR code. In WhatsApp on your phone: **Settings → Linked Devices → Link a Device**. The session is saved to `dbPath` — no QR code is needed on subsequent starts. The config is updated automatically.
+
+#### Finding your LID for allowFrom
+
+Modern WhatsApp accounts use an internal **LID** (Linked ID) — a numeric identifier that is different from the phone number. Picobot routes messages using LIDs, so `allowFrom` must contain LID numbers, not phone numbers.
+
+**How to find your LID:**
+
+Start the gateway after pairing and check the startup log:
+
+```
+whatsapp: connected as 85298765432 (LID: 12345678901234)
+```
+
+The number after `LID:` is this device's own LID. To find the LID of another person you want to allow, ask them to send you a message, then check the picobot log:
+
+```
+whatsapp: dropped message from unauthorized sender 99999999999@lid (add '99999999999' to allowFrom to permit)
+```
+
+The number in the log is the sender's LID. Add that number to `allowFrom`.
+
+**Examples:**
+
+| Scenario | `allowFrom` value |
+|----------|-------------------|
+| Allow only yourself (Notes to Self) | `[]` *(self-chat is always allowed regardless)* |
+| Allow one other person | `["12345678901234"]` |
+| Allow multiple people | `["12345678901234", "99999999999"]` |
+| Allow everyone | `[]` |
+
+> **Why not phone numbers?** Newer WhatsApp accounts use LID-based addressing internally. If you put a phone number in `allowFrom`, messages from that person will be silently dropped because WhatsApp delivers them with a LID, not the phone number.
+
+> **Self-chat (Notes to Self):** Your own messages to yourself always bypass the `allowFrom` list — no entry needed.
+
+> **Note:** Unlike Telegram/Discord bots, WhatsApp uses a personal phone number. Messages are sent and received from that number.
 
 ---
 
@@ -189,6 +294,11 @@ The workspace directory (default `~/.picobot/workspace`) contains files that sha
       "enabled": true,
       "token": "YOUR_TELEGRAM_BOT_TOKEN",
       "allowFrom": ["YOUR_TELEGRAM_USER_ID"]
+    },
+    "discord": {
+      "enabled": true,
+      "token": "YOUR_DISCORD_BOT_TOKEN",
+      "allowFrom": ["YOUR_DISCORD_USER_ID"]
     }
   },
   "providers": {

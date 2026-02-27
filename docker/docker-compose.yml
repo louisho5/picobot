@@ -16,6 +16,10 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       # Optional: Comma-separated Telegram user IDs allowed to chat
       - TELEGRAM_ALLOW_FROM=${TELEGRAM_ALLOW_FROM:-}
+      # Optional: Discord bot token from Developer Portal
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
+      # Optional: Comma-separated Discord user IDs allowed to chat
+      - DISCORD_ALLOW_FROM=${DISCORD_ALLOW_FROM:-}
     volumes:
-      # Persist config, workspace, memory, and skills across restarts
+      # Persist config, workspace, memory, skills, and WhatsApp session DB
       - ./picobot-data:/home/picobot/.picobot

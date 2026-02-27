@@ -29,9 +29,11 @@ docker run -d \
   --restart unless-stopped \
   -e OPENAI_API_KEY="sk-or-v1-YOUR_KEY" \
   -e OPENAI_API_BASE="https://openrouter.ai/api/v1" \
-  -e PICOBOT_MODEL="google/gemini-2.5-flash" \
+  -e PICOBOT_MODEL="openrouter/free" \
   -e TELEGRAM_BOT_TOKEN="123456:ABC..." \
   -e TELEGRAM_ALLOW_FROM="8881234567" \
+  -e DISCORD_BOT_TOKEN="MTIzNDU2..." \
+  -e DISCORD_ALLOW_FROM="123456789012345678" \
   -v ./picobot-data:/home/picobot/.picobot \
   picobot
 ```
@@ -45,6 +47,8 @@ docker run -d \
 | `PICOBOT_MODEL` | No | `google/gemini-2.5-flash` | LLM model to use |
 | `TELEGRAM_BOT_TOKEN` | No | — | Telegram bot token from @BotFather |
 | `TELEGRAM_ALLOW_FROM` | No | — | Comma-separated Telegram user IDs |
+| `DISCORD_BOT_TOKEN` | No | — | Discord bot token from Developer Portal |
+| `DISCORD_ALLOW_FROM` | No | — | Comma-separated Discord user IDs |
 
 ## Data Persistence
 

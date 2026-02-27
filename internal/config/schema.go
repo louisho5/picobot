@@ -18,15 +18,30 @@ type AgentDefaults struct {
 	Temperature        float64 `json:"temperature"`
 	MaxToolIterations  int     `json:"maxToolIterations"`
 	HeartbeatIntervalS int     `json:"heartbeatIntervalS"`
+	RequestTimeoutS    int     `json:"requestTimeoutS"`
 }
 
 type ChannelsConfig struct {
 	Telegram TelegramConfig `json:"telegram"`
+	Discord  DiscordConfig  `json:"discord"`
+	WhatsApp WhatsAppConfig `json:"whatsapp"`
+}
+
+type DiscordConfig struct {
+	Enabled   bool     `json:"enabled"`
+	Token     string   `json:"token"`
+	AllowFrom []string `json:"allowFrom"`
 }
 
 type TelegramConfig struct {
 	Enabled   bool     `json:"enabled"`
 	Token     string   `json:"token"`
+	AllowFrom []string `json:"allowFrom"`
+}
+
+type WhatsAppConfig struct {
+	Enabled   bool     `json:"enabled"`
+	DBPath    string   `json:"dbPath"`
 	AllowFrom []string `json:"allowFrom"`
 }
 

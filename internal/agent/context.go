@@ -49,6 +49,11 @@ func (cb *ContextBuilder) BuildMessages(history []string, currentMessage string,
 		}
 	}
 
+	// Tell the model which channel it is operating in and that tools are always available.
+	msgs = append(msgs, providers.Message{Role: "system", Content: fmt.Sprintf(
+		"You are operating on channel=%q chatID=%q. You have full access to all registered tools regardless of the channel. Always use your tools when the user asks you to perform actions (file operations, shell commands, web fetches, etc.).",
+		channel, chatID)})
+
 	// instruction for memory tool usage
 	msgs = append(msgs, providers.Message{Role: "system", Content: "If you decide something should be remembered, call the tool 'write_memory' with JSON arguments: {\"target\": \"today\"|\"long\", \"content\": \"...\", \"append\": true|false}. Use a tool call rather than plain chat text when writing memory."})
 
