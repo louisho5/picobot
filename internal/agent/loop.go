@@ -70,7 +70,7 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 	}
 	reg.Register(fsTool)
 
-	reg.Register(tools.NewExecTool(60))
+	reg.Register(tools.NewExecToolWithWorkspace(60, workspace))
 	reg.Register(tools.NewWebTool())
 	reg.Register(tools.NewSpawnTool())
 	if scheduler != nil {
