@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -41,6 +42,7 @@ type AgentLoop struct {
 	sessions      *session.SessionManager
 	context       *ContextBuilder
 	memory        *memory.MemoryStore
+	workspace     string
 	model         string
 	maxIterations int
 	running       bool
@@ -90,7 +92,7 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 	reg.Register(tools.NewReadSkillTool(skillMgr))
 	reg.Register(tools.NewDeleteSkillTool(skillMgr))
 
-	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations}
+	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, workspace: workspace, model: model, maxIterations: maxIterations}
 }
 
 // Run starts processing inbound messages. This is a blocking call until context is canceled.
@@ -112,6 +114,7 @@ func (a *AgentLoop) Run(ctx context.Context) {
 			}
 
 			log.Printf("Processing message from %s:%s\n", msg.Channel, msg.SenderID)
+			memStore := a.memoryStoreFor(msg.Channel, msg.ChatID)
 
 			// Quick heuristic: if user asks the agent to remember something explicitly,
 			// store it in today's note and reply immediately without calling the LLM.
@@ -119,7 +122,7 @@ func (a *AgentLoop) Run(ctx context.Context) {
 			rememberRe := rememberRE
 			if matches := rememberRe.FindStringSubmatch(trimmed); len(matches) == 2 {
 				note := matches[1]
-				if err := a.memory.AppendToday(note); err != nil {
+				if err := memStore.AppendToday(note); err != nil {
 					log.Printf("error appending to memory: %v", err)
 				}
 				out := chat.Outbound{Channel: msg.Channel, ChatID: msg.ChatID, Content: "OK, I've remembered that."}
@@ -149,6 +152,11 @@ func (a *AgentLoop) Run(ctx context.Context) {
 					ctool.SetContext(msg.Channel, msg.ChatID)
 				}
 			}
+			if wt := a.tools.Get("write_memory"); wt != nil {
+				if wtool, ok := wt.(interface{ SetStore(*memory.MemoryStore) }); ok {
+					wtool.SetStore(memStore)
+				}
+			}
 
 			// Build messages from session, long-term memory, and recent memory.
 			// System channels (heartbeat, cron) get a blank ephemeral session so
@@ -160,8 +168,8 @@ func (a *AgentLoop) Run(ctx context.Context) {
 				sess = a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
 			}
 			// get file-backed memory context (long-term + today)
-			memCtx, _ := a.memory.GetMemoryContext()
-			memories := a.memory.Recent(5)
+			memCtx, _ := memStore.GetMemoryContext()
+			memories := memStore.Recent(5)
 			messages := a.context.BuildMessages(sess.GetHistory(), msg.Content, msg.Channel, msg.ChatID, memCtx, memories)
 
 			iteration := 0
@@ -230,6 +238,7 @@ func (a *AgentLoop) Run(ctx context.Context) {
 func (a *AgentLoop) ProcessDirect(content string, timeout time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+	memStore := a.memoryStoreFor("cli", "direct")
 
 	// Set tool context so message/cron tools know the originating channel,
 	// matching what Run() does for hub-based messages.
@@ -243,10 +252,15 @@ func (a *AgentLoop) ProcessDirect(content string, timeout time.Duration) (string
 			ctool.SetContext("cli", "direct")
 		}
 	}
+	if wt := a.tools.Get("write_memory"); wt != nil {
+		if wtool, ok := wt.(interface{ SetStore(*memory.MemoryStore) }); ok {
+			wtool.SetStore(memStore)
+		}
+	}
 
 	// Build full context (bootstrap files, skills, memory) just like the main loop
-	memCtx, _ := a.memory.GetMemoryContext()
-	memories := a.memory.Recent(5)
+	memCtx, _ := memStore.GetMemoryContext()
+	memories := memStore.Recent(5)
 	messages := a.context.BuildMessages(nil, content, "cli", "direct", memCtx, memories)
 
 	// Support tool calling iterations (similar to main loop)
@@ -281,4 +295,31 @@ func (a *AgentLoop) ProcessDirect(content string, timeout time.Duration) (string
 	}
 
 	return "Max iterations reached without final response", nil
+}
+
+func (a *AgentLoop) memoryStoreFor(channel, chatID string) *memory.MemoryStore {
+	scope := sanitizeScopePart(channel) + "-" + sanitizeScopePart(chatID)
+	ws := filepath.Join(a.workspace, "memory_scopes", scope)
+	return memory.NewMemoryStoreWithWorkspace(ws, 100)
+}
+
+func sanitizeScopePart(s string) string {
+	s = strings.TrimSpace(strings.ToLower(s))
+	if s == "" {
+		return "default"
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+	out := strings.Trim(b.String(), "_")
+	if out == "" {
+		return "default"
+	}
+	return out
 }
