@@ -12,6 +12,7 @@ func NewProviderFromConfig(cfg config.Config) LLMProvider {
 			cfg.Providers.OpenAI.APIKey,
 			cfg.Providers.OpenAI.APIBase,
 			cfg.Agents.Defaults.RequestTimeoutS,
+			cfg.Agents.Defaults.MaxTokens,
 		)
 	}
 	return NewStubProvider()
