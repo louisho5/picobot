@@ -258,6 +258,24 @@ The number in the log is the sender's LID. Add that number to `allowFrom`.
 
 ---
 
+## Docker Environment Variables
+
+When running with Docker, you can override config values using environment variables. The `entrypoint.sh` script applies these overrides at container startup.
+
+| Environment Variable | Config Path | Description |
+|---------------------|-------------|-------------|
+| `OPENAI_API_KEY` | `providers.openai.apiKey` | OpenAI-compatible API key |
+| `OPENAI_API_BASE` | `providers.openai.apiBase` | API base URL |
+| `PICOBOT_MODEL` | `agents.defaults.model` | LLM model to use |
+| `PICOBOT_MAX_TOKENS` | `agents.defaults.maxTokens` | Maximum tokens for LLM responses |
+| `PICOBOT_MAX_TOOL_ITERATIONS` | `agents.defaults.maxToolIterations` | Maximum tool iterations per request |
+| `TELEGRAM_BOT_TOKEN` | `channels.telegram.token` | Telegram bot token (also enables the channel) |
+| `TELEGRAM_ALLOW_FROM` | `channels.telegram.allowFrom` | Comma-separated allowed Telegram user IDs |
+| `DISCORD_BOT_TOKEN` | `channels.discord.token` | Discord bot token (also enables the channel) |
+| `DISCORD_ALLOW_FROM` | `channels.discord.allowFrom` | Comma-separated allowed Discord user IDs |
+
+---
+
 ## Workspace Files
 
 The workspace directory (default `~/.picobot/workspace`) contains files that shape agent behavior:

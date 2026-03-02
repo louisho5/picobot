@@ -12,6 +12,10 @@ services:
       - OPENAI_API_BASE=${OPENAI_API_BASE:-https://openrouter.ai/api/v1}
       # Required: The LLM model to use
       - PICOBOT_MODEL=${PICOBOT_MODEL:-google/gemini-2.5-flash}
+      # Optional: Maximum tokens for LLM responses (default: 8192)
+      - PICOBOT_MAX_TOKENS=${PICOBOT_MAX_TOKENS:-8192}
+      # Optional: Maximum tool iterations per request (default: 100)
+      - PICOBOT_MAX_TOOL_ITERATIONS=${PICOBOT_MAX_TOOL_ITERATIONS:-100}
       # Optional: Telegram bot token from @BotFather
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       # Optional: Comma-separated Telegram user IDs allowed to chat
