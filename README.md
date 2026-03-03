@@ -57,7 +57,9 @@ Create a `docker-compose.yml`:
 services:
   picobot:
     image: louisho5/picobot:latest
+    user: "picobot"
     container_name: picobot
+    network_mode: host
     restart: unless-stopped
     environment:
       - OPENAI_API_KEY=your-key
