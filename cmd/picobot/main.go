@@ -248,7 +248,7 @@ func NewRootCmd() *cobra.Command {
 			cancel()
 		},
 	}
-	gatewayCmd.Flags().StringP("model", "M", "", "Model to use (overrides config/provider default)")
+	gatewayCmd.Flags().StringP("model", "M", "", "Model to use (overrides model in config.json)")
 	rootCmd.AddCommand(gatewayCmd)
 
 	// memory subcommands: read, append, write, recent
