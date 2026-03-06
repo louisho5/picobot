@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,7 @@ import (
 // For safety:
 // - prefer array form: {"cmd": ["ls", "-la"]}
 // - string form (shell) is disallowed to avoid shell injection
+// - safe allowlist enabled by default (opt out with PICOBOT_EXEC_ALLOW_UNSAFE=1)
 // - blacklist dangerous program names (rm, sudo, dd, mkfs, shutdown, reboot)
 // - arguments containing absolute paths, ~ or .. are rejected
 // - optional allowedDir enforces a working directory
@@ -63,10 +65,36 @@ var dangerous = map[string]struct{}{
 	"reboot":   {},
 }
 
+// Default safe allowlist. Set PICOBOT_EXEC_ALLOW_UNSAFE=1 to bypass this list.
+// Shell-capable binaries (e.g. git/find/rg) are intentionally excluded.
+var safeExecAllowlist = map[string]struct{}{
+	"cat":    {},
+	"date":   {},
+	"echo":   {},
+	"grep":   {},
+	"head":   {},
+	"ls":     {},
+	"pwd":    {},
+	"sleep":  {},
+	"stat":   {},
+	"tail":   {},
+	"true":   {},
+	"false":  {},
+	"uname":  {},
+	"wc":     {},
+	"whoami": {},
+}
+
 func isDangerousProg(prog string) bool {
 	base := filepath.Base(prog)
 	base = strings.ToLower(base)
 	_, ok := dangerous[base]
+	return ok
+}
+
+func isSafeAllowedProg(prog string) bool {
+	base := strings.ToLower(filepath.Base(prog))
+	_, ok := safeExecAllowlist[base]
 	return ok
 }
 
@@ -106,6 +134,14 @@ func (t *ExecTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	}
 
 	prog := argv[0]
+	if !isEnvTrue("PICOBOT_EXEC_ALLOW_UNSAFE") {
+		if strings.Contains(prog, "/") || strings.Contains(prog, "\\") {
+			return "", fmt.Errorf("exec: program path %q is disallowed; use a program name from safe allowlist", prog)
+		}
+		if !isSafeAllowedProg(prog) {
+			return "", fmt.Errorf("exec: program '%s' is not in safe allowlist; set PICOBOT_EXEC_ALLOW_UNSAFE=1 to override", prog)
+		}
+	}
 	if isDangerousProg(prog) {
 		return "", fmt.Errorf("exec: program '%s' is disallowed", prog)
 	}
@@ -134,4 +170,13 @@ func (t *ExecTool) Execute(ctx context.Context, args map[string]interface{}) (st
 	out := string(b)
 	out = strings.TrimRight(out, "\n")
 	return out, nil
+}
+
+func isEnvTrue(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
