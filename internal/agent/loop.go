@@ -97,8 +97,12 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 	sm := session.NewSessionManager(workspace)
 	ctx := NewContextBuilder(workspace, memory.NewLLMRanker(provider, model), 5)
 	mem := memory.NewMemoryStoreWithWorkspace(workspace, 100)
-	// register memory tool (needs store instance)
+	// register memory tools (all share the same store instance)
 	reg.Register(tools.NewWriteMemoryTool(mem))
+	reg.Register(tools.NewListMemoryTool(mem))
+	reg.Register(tools.NewReadMemoryTool(mem))
+	reg.Register(tools.NewEditMemoryTool(mem))
+	reg.Register(tools.NewDeleteMemoryTool(mem))
 
 	// register skill management tools (share the same os.Root)
 	skillMgr := tools.NewSkillManager(root)

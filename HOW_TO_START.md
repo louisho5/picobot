@@ -165,10 +165,10 @@ This starts the agent loop, heartbeat, and any enabled channels (e.g., Telegram,
 
 ## Available Tools
 
-The agent has access to 11 tools:
+The agent has access to 15 tools:
 
 | Tool | Purpose |
-|------|---------|
+|------|--------|
 | `message` | Send messages to channels |
 | `filesystem` | Read, write, list files |
 | `exec` | Run shell commands |
@@ -176,6 +176,10 @@ The agent has access to 11 tools:
 | `spawn` | Spawn background subagent |
 | `cron` | Schedule cron jobs |
 | `write_memory` | Persist information to memory |
+| `list_memory` | List all memory files |
+| `read_memory` | Read a specific memory file |
+| `edit_memory` | Find and replace text in a memory file |
+| `delete_memory` | Delete a daily memory file |
 | `create_skill` | Create a new skill |
 | `list_skills` | List available skills |
 | `read_skill` | Read a skill's content |

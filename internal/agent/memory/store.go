@@ -192,6 +192,86 @@ func (s *MemoryStore) GetRecentMemories(days int) (string, error) {
 	return strings.Join(parts, "\n---\n"), nil
 }
 
+// isValidMemoryFile reports whether name is a safe, recognised memory filename
+// (either "MEMORY.md" or a date file "YYYY-MM-DD.md").
+func isValidMemoryFile(name string) bool {
+	if name == "MEMORY.md" {
+		return true
+	}
+	// Must be exactly "YYYY-MM-DD.md" (13 chars).
+	if len(name) != 13 || name[4] != '-' || name[7] != '-' || name[10:] != ".md" {
+		return false
+	}
+	_, err := time.Parse("2006-01-02", name[:10])
+	return err == nil
+}
+
+// ListFiles returns the filenames of all files in the memory directory.
+func (s *MemoryStore) ListFiles() ([]string, error) {
+	entries, err := os.ReadDir(s.memoryDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() {
+			names = append(names, e.Name())
+		}
+	}
+	return names, nil
+}
+
+// ReadFile reads a named file from the memory directory.
+// name must be "MEMORY.md" or a date file "YYYY-MM-DD.md".
+// Returns ("", nil) if the file does not exist.
+func (s *MemoryStore) ReadFile(name string) (string, error) {
+	if !isValidMemoryFile(name) {
+		return "", fmt.Errorf("invalid memory filename: %q", name)
+	}
+	b, err := os.ReadFile(filepath.Join(s.memoryDir, name))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return string(b), nil
+}
+
+// WriteFile writes content to a named file in the memory directory.
+// name must be "MEMORY.md" or a date file "YYYY-MM-DD.md".
+func (s *MemoryStore) WriteFile(name, content string) error {
+	if !isValidMemoryFile(name) {
+		return fmt.Errorf("invalid memory filename: %q", name)
+	}
+	if err := os.MkdirAll(s.memoryDir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(s.memoryDir, name), []byte(content), 0o644)
+}
+
+// DeleteFile deletes a dated memory file (YYYY-MM-DD.md only).
+// Long-term memory (MEMORY.md) is protected and cannot be deleted via this method.
+func (s *MemoryStore) DeleteFile(name string) error {
+	// Only dated files may be deleted — never MEMORY.md.
+	if len(name) != 13 || name[4] != '-' || name[7] != '-' || name[10:] != ".md" {
+		return fmt.Errorf("delete_memory: only dated files (YYYY-MM-DD) can be deleted, got %q", name)
+	}
+	if _, err := time.Parse("2006-01-02", name[:10]); err != nil {
+		return fmt.Errorf("delete_memory: only dated files (YYYY-MM-DD) can be deleted, got %q", name)
+	}
+	if err := os.Remove(filepath.Join(s.memoryDir, name)); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("memory file not found: %q", name)
+		}
+		return err
+	}
+	return nil
+}
+
 // GetMemoryContext returns combined long-term memory + today's notes for the system prompt.
 func (s *MemoryStore) GetMemoryContext() (string, error) {
 	lt, err := s.ReadLongTerm()
