@@ -42,8 +42,8 @@ func TestListMemoryTool_WithFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(out, "MEMORY.md") {
-		t.Fatalf("expected MEMORY.md in output, got %q", out)
+	if !strings.Contains(out, "memory.md") {
+		t.Fatalf("expected memory.md in output, got %q", out)
 	}
 	if !strings.Contains(out, "(long-term)") {
 		t.Fatalf("expected (long-term) label, got %q", out)

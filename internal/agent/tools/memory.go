@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/local/picobot/internal/agent/memory"
+	"github.com/local/picobot/internal/config"
 )
 
 // resolveMemoryTarget maps a user-friendly target to a memory filename.
@@ -16,7 +17,7 @@ func resolveMemoryTarget(target string) (string, error) {
 	case "today":
 		return time.Now().UTC().Format("2006-01-02") + ".md", nil
 	case "long":
-		return "MEMORY.md", nil
+		return config.DefaultWorkspaceFiles().Memory, nil
 	default:
 		if _, err := time.Parse("2006-01-02", target); err == nil {
 			return target + ".md", nil
@@ -55,7 +56,7 @@ func (t *ListMemoryTool) Execute(ctx context.Context, args map[string]interface{
 	fmt.Fprintf(&sb, "Memory files (%d):\n", len(files))
 	for _, f := range files {
 		switch f {
-		case "MEMORY.md":
+		case config.DefaultWorkspaceFiles().Memory, config.LegacyWorkspaceFiles().Memory:
 			fmt.Fprintf(&sb, "- %s (long-term)\n", f)
 		case today:
 			fmt.Fprintf(&sb, "- %s (today)\n", f)
@@ -181,7 +182,7 @@ func (t *EditMemoryTool) Execute(ctx context.Context, args map[string]interface{
 // ─── delete_memory ────
 
 // DeleteMemoryTool deletes a dated daily memory file.
-// Long-term memory (MEMORY.md) will be protected.
+// Long-term memory (memory.md) will be protected.
 type DeleteMemoryTool struct {
 	mem *memory.MemoryStore
 }
@@ -192,7 +193,7 @@ func NewDeleteMemoryTool(mem *memory.MemoryStore) *DeleteMemoryTool {
 
 func (t *DeleteMemoryTool) Name() string { return "delete_memory" }
 func (t *DeleteMemoryTool) Description() string {
-	return "Delete a daily memory file (YYYY-MM-DD). Long-term memory (MEMORY.md) cannot be deleted this way."
+	return "Delete a daily memory file (YYYY-MM-DD). Long-term memory (memory.md) cannot be deleted this way."
 }
 func (t *DeleteMemoryTool) Parameters() map[string]interface{} {
 	return map[string]interface{}{

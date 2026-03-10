@@ -17,13 +17,13 @@ Each skill is a directory in `skills/` containing:
 ```
 skills/
   └── skill-name/
-      ├── SKILL.md        # Required: Main documentation with frontmatter
+      ├── skill.md        # Required: Main documentation with frontmatter
       └── [other files]   # Optional: Scripts, configs, references
 ```
 
-## SKILL.md Format
+## skill.md Format
 
-Every skill must have a `SKILL.md` file with YAML frontmatter:
+Every skill must have a `skill.md` file with YAML frontmatter:
 
 ```markdown
 ---
@@ -170,7 +170,7 @@ curl -H "Authorization: Bearer $API_KEY" https://api.example.com
 
 ## Example Skills
 
-After onboarding, check `skills/example/SKILL.md` for a demonstration of the format.
+After onboarding, check `skills/example/skill.md` for a demonstration of the format.
 
 ## Best Practices
 
@@ -198,7 +198,7 @@ ls ~/.picobot/workspace/skills/
 
 # Create skill
 mkdir -p ~/.picobot/workspace/skills/my-skill
-cat > ~/.picobot/workspace/skills/my-skill/SKILL.md <<EOF
+cat > ~/.picobot/workspace/skills/my-skill/skill.md <<EOF
 ---
 name: my-skill
 description: My custom skill
@@ -217,7 +217,7 @@ rm -rf ~/.picobot/workspace/skills/my-skill
 
 **Skills not loading?**
 - Check `skills/` exists in workspace
-- Verify `SKILL.md` has valid frontmatter with `name` field
+- Verify `skill.md` has valid frontmatter with `name` field
 - Check file permissions (should be readable)
 
 **Skill content too long?**

@@ -4,14 +4,14 @@ import (
 	"context"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/local/picobot/internal/chat"
+	"github.com/local/picobot/internal/config"
 )
 
-// StartHeartbeat starts a periodic check that reads HEARTBEAT.md and pushes
+// StartHeartbeat starts a periodic check that reads heartbeat.md and pushes
 // its content into the agent's inbound chat hub for processing.
 func StartHeartbeat(ctx context.Context, workspace string, interval time.Duration, hub *chat.Hub) {
 	go func() {
@@ -24,7 +24,9 @@ func StartHeartbeat(ctx context.Context, workspace string, interval time.Duratio
 				log.Println("heartbeat: stopping")
 				return
 			case <-ticker.C:
-				path := filepath.Join(workspace, "HEARTBEAT.md")
+				files := config.DefaultWorkspaceFiles()
+				legacy := config.LegacyWorkspaceFiles()
+				path := config.ResolveWorkspaceFilePath(workspace, files.Heartbeat, legacy.Heartbeat)
 				data, err := os.ReadFile(path)
 				if err != nil {
 					// file doesn't exist or can't be read — skip silently
@@ -41,7 +43,7 @@ func StartHeartbeat(ctx context.Context, workspace string, interval time.Duratio
 					Channel:  "heartbeat",
 					ChatID:   "system",
 					SenderID: "heartbeat",
-					Content:  "[HEARTBEAT CHECK] Review and execute any pending tasks from HEARTBEAT.md:\n\n" + content,
+					Content:  "[HEARTBEAT CHECK] Review and execute any pending tasks from " + files.Heartbeat + ":\n\n" + content,
 				}
 			}
 		}

@@ -329,7 +329,7 @@ func NewRootCmd() *cobra.Command {
 
 	writeCmd := &cobra.Command{
 		Use:   "write long -c <content>",
-		Short: "Write (overwrite) long-term MEMORY.md",
+		Short: "Write (overwrite) long-term memory.md",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if args[0] != "long" {

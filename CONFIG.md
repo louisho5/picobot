@@ -56,7 +56,7 @@ Agent behavior settings.
 | `maxTokens` | int | `8192` | Maximum tokens for LLM responses. |
 | `temperature` | float | `0.7` | LLM temperature (0.0 = deterministic, 1.0 = creative). |
 | `maxToolIterations` | int | `100` | Maximum number of tool-calling iterations per request. Prevents infinite loops. |
-| `heartbeatIntervalS` | int | `60` | How often (in seconds) the heartbeat checks `HEARTBEAT.md` for periodic tasks. Only used in gateway mode. |
+| `heartbeatIntervalS` | int | `60` | How often (in seconds) the heartbeat checks `heartbeat.md` for periodic tasks. Only used in gateway mode. |
 | `requestTimeoutS` | int | `60` | HTTP timeout in seconds for each LLM API request. Increase for slow models or poor network conditions. |
 
 ### Model Priority
@@ -282,12 +282,12 @@ The workspace directory (default `~/.picobot/workspace`) contains files that sha
 
 | File | Purpose | Who edits |
 |------|---------|-----------|
-| `SOUL.md` | Agent personality, values, communication style | You (once) |
-| `AGENTS.md` | Agent instructions, rules, guidelines | You (once) |
-| `USER.md` | Your profile — name, timezone, preferences | You (once) |
-| `TOOLS.md` | Tool reference documentation | You (once) |
-| `HEARTBEAT.md` | Periodic tasks checked every `heartbeatIntervalS` seconds | You / Agent |
-| `memory/MEMORY.md` | Long-term memory | Agent (via write_memory tool) |
+| `soul.md` | Agent personality, values, communication style | You (once) |
+| `agents.md` | Agent instructions, rules, guidelines | You (once) |
+| `user.md` | Your profile — name, timezone, preferences | You (once) |
+| `tools.md` | Tool reference documentation | You (once) |
+| `heartbeat.md` | Periodic tasks checked every `heartbeatIntervalS` seconds | You / Agent |
+| `memory/memory.md` | Long-term memory | Agent (via write_memory tool) |
 | `memory/YYYY-MM-DD.md` | Daily notes | Agent (via write_memory tool) |
 | `skills/` | Skill packages | Agent (via skill tools) or you manually |
 

@@ -30,7 +30,7 @@ func TestLoader_LoadAll(t *testing.T) {
 		if err := os.MkdirAll(skillDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		skillFile := filepath.Join(skillDir, "SKILL.md")
+		skillFile := filepath.Join(skillDir, "skill.md")
 		content := "---\nname: " + ts.name + "\ndescription: " + ts.description + "\n---\n\n" + ts.content
 		if err := os.WriteFile(skillFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
@@ -69,7 +69,7 @@ func TestLoader_LoadByName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	skillFile := filepath.Join(skillsDir, "SKILL.md")
+	skillFile := filepath.Join(skillsDir, "skill.md")
 	content := "---\nname: test-skill\ndescription: Test skill\n---\n\n# Test\n\nTest content"
 	if err := os.WriteFile(skillFile, []byte(content), 0o644); err != nil {
 		t.Fatal(err)

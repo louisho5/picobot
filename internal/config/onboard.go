@@ -15,6 +15,7 @@ func DefaultConfig() Config {
 	return Config{
 		Agents: AgentsConfig{Defaults: AgentDefaults{
 			Workspace:          "~/.picobot/workspace",
+			Files:              defaultWorkspaceFiles(),
 			Model:              "stub-model",
 			MaxTokens:          8192,
 			Temperature:        0.7,
@@ -47,11 +48,18 @@ func SaveConfig(cfg Config, path string) error {
 
 // InitializeWorkspace creates the workspace dir and bootstrap files.
 func InitializeWorkspace(basePath string) error {
+	return InitializeWorkspaceWithFiles(basePath, defaultWorkspaceFiles())
+}
+
+// InitializeWorkspaceWithFiles creates the workspace dir and bootstrap files.
+func InitializeWorkspaceWithFiles(basePath string, filesCfg WorkspaceFiles) error {
 	if err := os.MkdirAll(basePath, 0o755); err != nil {
 		return err
 	}
-	files := map[string]string{
-		"SOUL.md": `# Soul
+	files := mergeWorkspaceFiles(filesCfg)
+	legacy := legacyWorkspaceFiles()
+	bootstrap := map[string]string{
+		files.Soul: `# Soul
 
 I am picobot 🤖, a personal AI assistant.
 
@@ -74,7 +82,7 @@ I am picobot 🤖, a personal AI assistant.
 - Ask clarifying questions when needed
 `,
 
-		"AGENTS.md": `# Agent Instructions
+		files.Agents: `# Agent Instructions
 
 You are a helpful AI assistant. Be concise, accurate, and friendly.
 
@@ -134,7 +142,7 @@ Never create files directly in the workspace root. Always use a project folder.
 - Do not expose API keys or credentials in responses
 `,
 
-		"USER.md": `# User Profile
+		files.User: `# User Profile
 
 Information about the user to help personalize interactions.
 
@@ -175,7 +183,7 @@ Information about the user to help personalize interactions.
 - (add your interests here)
 `,
 
-		"TOOLS.md": `# Available Tools
+		files.Tools: `# Available Tools
 
 This document describes the tools available to picobot.
 
@@ -228,7 +236,7 @@ Persist information to memory files. Never store redundant information like hear
 - append: true to add, false to replace
 
 ### list_memory
-List all memory files (daily notes and long-term MEMORY.md).
+List all memory files (daily notes and long-term memory.md).
 - No arguments needed
 
 ### read_memory
@@ -242,7 +250,7 @@ Find and replace text within a memory file.
 - new_text: replacement text (omit or empty string to delete the matched text)
 
 ### delete_memory
-Delete a daily memory file. Cannot delete long-term memory (MEMORY.md).
+Delete a daily memory file. Cannot delete long-term memory (memory.md).
 - target: date in "YYYY-MM-DD" format
 
 ## Skill Management
@@ -273,7 +281,7 @@ Spawn a background subagent process.
 Schedule or manage cron jobs.
 `,
 
-		"HEARTBEAT.md": `# Heartbeat
+		files.Heartbeat: `# Heartbeat
 
 This file is checked periodically (every 60 seconds). Add tasks here that should run on a schedule.
 
@@ -293,12 +301,27 @@ This file is checked periodically (every 60 seconds). Add tasks here that should
 -->
 `,
 	}
-	for name, content := range files {
+	for name, content := range bootstrap {
 		p := filepath.Join(basePath, name)
-		if _, err := os.Stat(p); os.IsNotExist(err) {
-			if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
-				return err
-			}
+		if fileExists(p) {
+			continue
+		}
+		legacyName := legacy.Soul
+		switch name {
+		case files.Agents:
+			legacyName = legacy.Agents
+		case files.User:
+			legacyName = legacy.User
+		case files.Tools:
+			legacyName = legacy.Tools
+		case files.Heartbeat:
+			legacyName = legacy.Heartbeat
+		}
+		if fileExists(filepath.Join(basePath, legacyName)) {
+			continue
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			return err
 		}
 	}
 	// memory dir
@@ -306,8 +329,9 @@ This file is checked periodically (every 60 seconds). Add tasks here that should
 	if err := os.MkdirAll(mem, 0o755); err != nil {
 		return err
 	}
-	mm := filepath.Join(mem, "MEMORY.md")
-	if _, err := os.Stat(mm); os.IsNotExist(err) {
+	mm := filepath.Join(mem, files.Memory)
+	legacyMM := filepath.Join(mem, legacy.Memory)
+	if !fileExists(mm) && !fileExists(legacyMM) {
 		if err := os.WriteFile(mm, []byte("# Long-term Memory\n\nImportant facts and information to remember across sessions.\n"), 0o644); err != nil {
 			return err
 		}
@@ -318,7 +342,7 @@ This file is checked periodically (every 60 seconds). Add tasks here that should
 	if err := os.MkdirAll(skillsDir, 0o755); err != nil {
 		return err
 	}
-	if err := extractEmbeddedSkills(skillsDir); err != nil {
+	if err := extractEmbeddedSkills(skillsDir, files); err != nil {
 		return err
 	}
 
@@ -327,7 +351,8 @@ This file is checked periodically (every 60 seconds). Add tasks here that should
 
 // extractEmbeddedSkills walks the embedded skills FS and writes each file
 // to the target directory, skipping files that already exist.
-func extractEmbeddedSkills(targetDir string) error {
+func extractEmbeddedSkills(targetDir string, files WorkspaceFiles) error {
+	legacy := legacyWorkspaceFiles()
 	return fs.WalkDir(embeds.Skills, "skills", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -339,6 +364,9 @@ func extractEmbeddedSkills(targetDir string) error {
 		}
 		if rel == "." {
 			return nil
+		}
+		if filepath.Base(rel) == legacy.Skill {
+			rel = filepath.Join(filepath.Dir(rel), files.Skill)
 		}
 		dest := filepath.Join(targetDir, rel)
 		if d.IsDir() {
@@ -379,7 +407,7 @@ func Onboard() (string, string, error) {
 	if err := SaveConfig(cfg, cfgPath); err != nil {
 		return "", "", fmt.Errorf("saving config: %w", err)
 	}
-	if err := InitializeWorkspace(workspacePath); err != nil {
+	if err := InitializeWorkspaceWithFiles(workspacePath, cfg.Agents.Defaults.Files); err != nil {
 		return "", "", fmt.Errorf("initializing workspace: %w", err)
 	}
 	return cfgPath, workspacePath, nil

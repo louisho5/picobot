@@ -76,13 +76,13 @@ Run the onboard command to create the config and workspace:
 This creates:
 - `~/.picobot/config.json` — your configuration file
 - `~/.picobot/workspace/` — the agent's workspace with bootstrap files:
-  - `SOUL.md` — agent personality and values
-  - `AGENTS.md` — agent instructions and guidelines
-  - `USER.md` — your profile (customize this!)
-  - `TOOLS.md` — documentation of all available tools
-  - `HEARTBEAT.md` — periodic tasks
-  - `memory/MEMORY.md` — long-term memory
-  - `skills/example/SKILL.md` — example skill
+  - `soul.md` — agent personality and values
+  - `agents.md` — agent instructions and guidelines
+  - `user.md` — your profile (customize this!)
+  - `tools.md` — documentation of all available tools
+  - `heartbeat.md` — periodic tasks
+  - `memory/memory.md` — long-term memory
+  - `skills/example/skill.md` — example skill
 
 ## Step 3: Configure API Key
 
@@ -115,7 +115,7 @@ Also set your preferred model (e.g., `google/gemini-2.5-flash` for OpenRouter, `
 
 ## Step 4: Customize Your Profile
 
-Edit `~/.picobot/workspace/USER.md` to fill in your name, timezone, preferences, etc. This helps the agent personalize its responses.
+Edit `~/.picobot/workspace/user.md` to fill in your name, timezone, preferences, etc. This helps the agent personalize its responses.
 
 ## Step 5: Try It!
 
@@ -514,8 +514,8 @@ The session is stored in the `./picobot-data` volume — as long as that directo
 
 ## Next Steps
 
-- Edit `SOUL.md` to change the agent's personality
-- Edit `AGENTS.md` to add custom instructions
+- Edit `soul.md` to change the agent's personality
+- Edit `agents.md` to add custom instructions
 - Ask the agent to create skills for tasks you do often
 - Enable Telegram in `config.json` to chat with your bot on mobile
 - Enable Discord in `config.json` to chat with your bot on Discord
