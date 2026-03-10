@@ -99,7 +99,7 @@ Notes: Channel refers to communication channels (e.g., Telegram, Discord, WhatsA
 
 ## Features
 
-### 11 Built-in Tools
+### 16 Built-in Tools
 
 The agent can take real actions — not just chat:
 
@@ -108,10 +108,15 @@ The agent can take real actions — not just chat:
 | `filesystem` | Read, write, list files |
 | `exec` | Run shell commands |
 | `web` | Fetch web pages and APIs |
+| `web_search` | Search the web via DuckDuckGo (no API key needed) |
 | `message` | Send messages to channels |
 | `spawn` | Launch background subagents |
 | `cron` | Schedule recurring tasks |
 | `write_memory` | Persist information across sessions |
+| `list_memory` | List all memory files |
+| `read_memory` | Read a specific memory file |
+| `edit_memory` | Find and replace text in a memory file |
+| `delete_memory` | Delete a daily memory file |
 | `create_skill` | Create reusable skill packages |
 | `list_skills` | List available skills |
 | `read_skill` | Read a skill's content |

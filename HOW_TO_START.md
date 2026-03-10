@@ -165,7 +165,7 @@ This starts the agent loop, heartbeat, and any enabled channels (e.g., Telegram,
 
 ## Available Tools
 
-The agent has access to 15 tools:
+The agent has access to 16 tools:
 
 | Tool | Purpose |
 |------|--------|
@@ -173,6 +173,7 @@ The agent has access to 15 tools:
 | `filesystem` | Read, write, list files |
 | `exec` | Run shell commands |
 | `web` | Fetch web content from URLs |
+| `web_search` | Search the web via DuckDuckGo (no API key needed) |
 | `spawn` | Spawn background subagent |
 | `cron` | Schedule cron jobs |
 | `write_memory` | Persist information to memory |

@@ -89,6 +89,7 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 
 	reg.Register(tools.NewExecTool(60))
 	reg.Register(tools.NewWebTool())
+	reg.Register(tools.NewWebSearchTool())
 	reg.Register(tools.NewSpawnTool())
 	if scheduler != nil {
 		reg.Register(tools.NewCronTool(scheduler))

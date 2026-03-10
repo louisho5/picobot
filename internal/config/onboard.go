@@ -207,6 +207,12 @@ Fetch and extract content from a URL.
 - url: the URL to fetch
 - Useful for checking websites, APIs, documentation
 
+### web_search
+Search the web using DuckDuckGo (no API key required).
+- query: the search terms
+- Returns an instant answer, abstract summary, and/or related result links
+- Use this to find relevant URLs, then use `web` to fetch the full page if needed
+
 ## Messaging
 
 ### message

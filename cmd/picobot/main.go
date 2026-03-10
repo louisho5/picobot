@@ -120,12 +120,7 @@ func NewRootCmd() *cobra.Command {
 
 			hub := chat.NewHub(100)
 			cfg, _ := config.LoadConfig()
-			var provider providers.LLMProvider
-			if cfg.Providers.OpenAI != nil && cfg.Providers.OpenAI.APIKey != "" {
-				provider = providers.NewOpenAIProvider(cfg.Providers.OpenAI.APIKey, cfg.Providers.OpenAI.APIBase, cfg.Agents.Defaults.RequestTimeoutS, cfg.Agents.Defaults.MaxTokens)
-			} else {
-				provider = providers.NewStubProvider()
-			}
+			provider := providers.NewProviderFromConfig(cfg)
 
 			// choose model: flag > config default > provider default
 			model := modelFlag
