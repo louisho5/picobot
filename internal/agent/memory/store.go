@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/local/picobot/internal/config"
 )
 
 // MemoryItem is a stored memory entry.
@@ -28,6 +30,17 @@ type MemoryStore struct {
 	long      []MemoryItem
 	short     []MemoryItem
 	mu        sync.RWMutex
+}
+
+func (s *MemoryStore) longTermPath() string {
+	files := config.DefaultWorkspaceFiles()
+	return filepath.Join(s.memoryDir, files.Memory)
+}
+
+func (s *MemoryStore) resolveLongTermPath() string {
+	files := config.DefaultWorkspaceFiles()
+	legacy := config.LegacyWorkspaceFiles()
+	return config.ResolveWorkspaceFilePath(s.memoryDir, files.Memory, legacy.Memory)
 }
 
 // NewMemoryStore creates an in-memory store with short-term limit (e.g., 100).
@@ -118,9 +131,9 @@ func (s *MemoryStore) QueryByKeyword(keyword string, n int) []MemoryItem {
 	return out
 }
 
-// ReadLongTerm reads the long-term MEMORY.md file under workspace/memory/MEMORY.md
+// ReadLongTerm reads the long-term memory file under workspace/memory/.
 func (s *MemoryStore) ReadLongTerm() (string, error) {
-	path := filepath.Join(s.memoryDir, "MEMORY.md")
+	path := s.resolveLongTermPath()
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -131,12 +144,12 @@ func (s *MemoryStore) ReadLongTerm() (string, error) {
 	return string(b), nil
 }
 
-// WriteLongTerm writes content to MEMORY.md (overwrites).
+// WriteLongTerm writes content to the long-term memory file (overwrites).
 func (s *MemoryStore) WriteLongTerm(content string) error {
 	if err := os.MkdirAll(s.memoryDir, 0o755); err != nil {
 		return err
 	}
-	path := filepath.Join(s.memoryDir, "MEMORY.md")
+	path := s.longTermPath()
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
@@ -193,9 +206,11 @@ func (s *MemoryStore) GetRecentMemories(days int) (string, error) {
 }
 
 // isValidMemoryFile reports whether name is a safe, recognised memory filename
-// (either "MEMORY.md" or a date file "YYYY-MM-DD.md").
+// (either long-term memory filename or a date file "YYYY-MM-DD.md").
 func isValidMemoryFile(name string) bool {
-	if name == "MEMORY.md" {
+	files := config.DefaultWorkspaceFiles()
+	legacy := config.LegacyWorkspaceFiles()
+	if name == files.Memory || name == legacy.Memory {
 		return true
 	}
 	// Must be exactly "YYYY-MM-DD.md" (13 chars).
@@ -225,13 +240,17 @@ func (s *MemoryStore) ListFiles() ([]string, error) {
 }
 
 // ReadFile reads a named file from the memory directory.
-// name must be "MEMORY.md" or a date file "YYYY-MM-DD.md".
+// name must be the long-term memory filename or a date file "YYYY-MM-DD.md".
 // Returns ("", nil) if the file does not exist.
 func (s *MemoryStore) ReadFile(name string) (string, error) {
 	if !isValidMemoryFile(name) {
 		return "", fmt.Errorf("invalid memory filename: %q", name)
 	}
-	b, err := os.ReadFile(filepath.Join(s.memoryDir, name))
+	path := filepath.Join(s.memoryDir, name)
+	if name == config.DefaultWorkspaceFiles().Memory || name == config.LegacyWorkspaceFiles().Memory {
+		path = s.resolveLongTermPath()
+	}
+	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
@@ -242,7 +261,7 @@ func (s *MemoryStore) ReadFile(name string) (string, error) {
 }
 
 // WriteFile writes content to a named file in the memory directory.
-// name must be "MEMORY.md" or a date file "YYYY-MM-DD.md".
+// name must be the long-term memory filename or a date file "YYYY-MM-DD.md".
 func (s *MemoryStore) WriteFile(name, content string) error {
 	if !isValidMemoryFile(name) {
 		return fmt.Errorf("invalid memory filename: %q", name)
@@ -250,13 +269,17 @@ func (s *MemoryStore) WriteFile(name, content string) error {
 	if err := os.MkdirAll(s.memoryDir, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(s.memoryDir, name), []byte(content), 0o644)
+	path := filepath.Join(s.memoryDir, name)
+	if name == config.DefaultWorkspaceFiles().Memory || name == config.LegacyWorkspaceFiles().Memory {
+		path = s.longTermPath()
+	}
+	return os.WriteFile(path, []byte(content), 0o644)
 }
 
 // DeleteFile deletes a dated memory file (YYYY-MM-DD.md only).
-// Long-term memory (MEMORY.md) is protected and cannot be deleted via this method.
+// Long-term memory is protected and cannot be deleted via this method.
 func (s *MemoryStore) DeleteFile(name string) error {
-	// Only dated files may be deleted — never MEMORY.md.
+	// Only dated files may be deleted.
 	if len(name) != 13 || name[4] != '-' || name[7] != '-' || name[10:] != ".md" {
 		return fmt.Errorf("delete_memory: only dated files (YYYY-MM-DD) can be deleted, got %q", name)
 	}

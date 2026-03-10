@@ -32,7 +32,7 @@ func isHeartbeatContent(content string) bool {
 	return false
 }
 
-// WriteMemoryTool writes to the agent's memory (today's note or long-term MEMORY.md)
+// WriteMemoryTool writes to the agent's memory (today's note or long-term memory.md)
 type WriteMemoryTool struct {
 	mem *memory.MemoryStore
 }
@@ -43,7 +43,7 @@ func NewWriteMemoryTool(mem *memory.MemoryStore) *WriteMemoryTool {
 
 func (w *WriteMemoryTool) Name() string { return "write_memory" }
 func (w *WriteMemoryTool) Description() string {
-	return "Write or append to memory (today's note or long-term MEMORY.md). NEVER store heartbeat status, health checks, or 'no pending tasks' results."
+	return "Write or append to memory (today's note or long-term memory.md). NEVER store heartbeat status, health checks, or 'no pending tasks' results."
 }
 
 func (w *WriteMemoryTool) Parameters() map[string]interface{} {
@@ -124,4 +124,3 @@ func (w *WriteMemoryTool) Execute(ctx context.Context, args map[string]interface
 		return "", fmt.Errorf("write_memory: unknown target '%s'", target)
 	}
 }
-

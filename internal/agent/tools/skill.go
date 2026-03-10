@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/local/picobot/internal/config"
 )
 
-// SkillMetadata holds metadata parsed from SKILL.md frontmatter.
+// SkillMetadata holds metadata parsed from skill.md frontmatter.
 type SkillMetadata struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -18,6 +20,12 @@ type SkillMetadata struct {
 // All file operations are sandboxed via os.Root (Go 1.24+).
 type SkillManager struct {
 	root *os.Root // rooted at the workspace directory
+}
+
+func resolveSkillPath(base string) string {
+	files := config.DefaultWorkspaceFiles()
+	legacy := config.LegacyWorkspaceFiles()
+	return config.ResolveWorkspaceFilePath(base, files.Skill, legacy.Skill)
 }
 
 // NewSkillManager creates a new skill manager backed by an os.Root.
@@ -46,7 +54,7 @@ func (sm *SkillManager) ListSkills() ([]SkillMetadata, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		skillFile := "skills/" + entry.Name() + "/SKILL.md"
+		skillFile := resolveSkillPath("skills/" + entry.Name())
 		if _, err := sm.root.Stat(skillFile); err == nil {
 			meta, err := sm.parseSkillMetadata(skillFile)
 			if err != nil {
@@ -61,7 +69,7 @@ func (sm *SkillManager) ListSkills() ([]SkillMetadata, error) {
 
 // GetSkill reads a skill's content by name.
 func (sm *SkillManager) GetSkill(name string) (string, error) {
-	content, err := sm.root.ReadFile("skills/" + name + "/SKILL.md")
+	content, err := sm.root.ReadFile(resolveSkillPath("skills/" + name))
 	if err != nil {
 		return "", err
 	}
@@ -81,11 +89,12 @@ func (sm *SkillManager) CreateSkill(name, description, content string) error {
 		return err
 	}
 
-	// Create SKILL.md with frontmatter
+	// Create skill markdown with frontmatter.
+	files := config.DefaultWorkspaceFiles()
 	frontmatter := fmt.Sprintf("---\nname: %s\ndescription: %s\n---\n\n", name, description)
 	fullContent := frontmatter + content
 
-	return sm.root.WriteFile(skillDir+"/SKILL.md", []byte(fullContent), 0o644)
+	return sm.root.WriteFile(skillDir+"/"+files.Skill, []byte(fullContent), 0o644)
 }
 
 // DeleteSkill removes a skill directory.
@@ -93,7 +102,7 @@ func (sm *SkillManager) DeleteSkill(name string) error {
 	return sm.root.RemoveAll("skills/" + name)
 }
 
-// parseSkillMetadata extracts metadata from SKILL.md frontmatter.
+// parseSkillMetadata extracts metadata from skill frontmatter.
 func (sm *SkillManager) parseSkillMetadata(skillPath string) (SkillMetadata, error) {
 	content, err := sm.root.ReadFile(skillPath)
 	if err != nil {

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/local/picobot/internal/agent/memory"
 	"github.com/local/picobot/internal/agent/skills"
+	"github.com/local/picobot/internal/config"
 	"github.com/local/picobot/internal/providers"
 )
 
@@ -37,17 +37,27 @@ func (cb *ContextBuilder) BuildMessages(history []string, currentMessage string,
 
 	sysParts = append(sysParts, "You are Picobot, a helpful assistant.")
 
-	// Load workspace bootstrap files
-	bootstrapFiles := []string{"SOUL.md", "AGENTS.md", "USER.md", "TOOLS.md"}
-	for _, name := range bootstrapFiles {
-		p := filepath.Join(cb.workspace, name)
+	// Load workspace bootstrap files (lowercase preferred, legacy uppercase supported).
+	files := config.DefaultWorkspaceFiles()
+	legacy := config.LegacyWorkspaceFiles()
+	bootstrapFiles := []struct {
+		displayName string
+		path        string
+	}{
+		{displayName: files.Soul, path: config.ResolveWorkspaceFilePath(cb.workspace, files.Soul, legacy.Soul)},
+		{displayName: files.Agents, path: config.ResolveWorkspaceFilePath(cb.workspace, files.Agents, legacy.Agents)},
+		{displayName: files.User, path: config.ResolveWorkspaceFilePath(cb.workspace, files.User, legacy.User)},
+		{displayName: files.Tools, path: config.ResolveWorkspaceFilePath(cb.workspace, files.Tools, legacy.Tools)},
+	}
+	for _, file := range bootstrapFiles {
+		p := file.path
 		data, err := os.ReadFile(p)
 		if err != nil {
 			continue // file may not exist yet, skip silently
 		}
 		content := strings.TrimSpace(string(data))
 		if content != "" {
-			sysParts = append(sysParts, fmt.Sprintf("## %s\n\n%s", name, content))
+			sysParts = append(sysParts, fmt.Sprintf("## %s\n\n%s", file.displayName, content))
 		}
 	}
 

@@ -172,7 +172,7 @@ See [HOW_TO_START.md](HOW_TO_START.md) for a detailed Discord Bot walkthrough.
 
 ### Heartbeat
 
-A configurable periodic check (default: 60s) that reads `HEARTBEAT.md` for scheduled tasks — like a personal cron with natural language.
+A configurable periodic check (default: 60s) that reads `heartbeat.md` for scheduled tasks — like a personal cron with natural language.
 
 ## Configuration
 

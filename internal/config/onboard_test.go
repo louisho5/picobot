@@ -13,7 +13,7 @@ func TestInitializeWorkspaceCreatesFiles(t *testing.T) {
 		t.Fatalf("InitializeWorkspace failed: %v", err)
 	}
 	// Check a few files
-	want := []string{"AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md", "HEARTBEAT.md", filepath.Join("memory", "MEMORY.md")}
+	want := []string{"agents.md", "soul.md", "user.md", "tools.md", "heartbeat.md", filepath.Join("memory", "memory.md")}
 	for _, w := range want {
 		p := filepath.Join(d, w)
 		if _, err := os.Stat(p); err != nil {
@@ -29,13 +29,13 @@ func TestInitializeWorkspaceCreatesFiles(t *testing.T) {
 	// Verify embedded skills were extracted
 	embeddedSkills := []string{"example", "weather", "cron"}
 	for _, skill := range embeddedSkills {
-		skillPath := filepath.Join(d, "skills", skill, "SKILL.md")
+		skillPath := filepath.Join(d, "skills", skill, "skill.md")
 		if _, err := os.Stat(skillPath); err != nil {
 			t.Fatalf("expected embedded skill %s to exist, err=%v", skill, err)
 		}
 		b, _ := os.ReadFile(skillPath)
 		if len(b) == 0 {
-			t.Fatalf("expected skill %s SKILL.md to be non-empty", skill)
+			t.Fatalf("expected skill %s skill.md to be non-empty", skill)
 		}
 	}
 }

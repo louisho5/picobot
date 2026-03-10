@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/local/picobot/internal/config"
 )
 
 // Skill represents a loaded skill with its metadata and content.
@@ -36,11 +38,13 @@ func (l *Loader) LoadAll() ([]Skill, error) {
 	}
 
 	var skills []Skill
+	files := config.DefaultWorkspaceFiles()
+	legacy := config.LegacyWorkspaceFiles()
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-		skillPath := filepath.Join(skillsPath, entry.Name(), "SKILL.md")
+		skillPath := config.ResolveWorkspaceFilePath(filepath.Join(skillsPath, entry.Name()), files.Skill, legacy.Skill)
 		if _, err := os.Stat(skillPath); err == nil {
 			skill, err := l.loadSkill(skillPath)
 			if err != nil {
@@ -55,11 +59,13 @@ func (l *Loader) LoadAll() ([]Skill, error) {
 
 // LoadByName loads a specific skill by name.
 func (l *Loader) LoadByName(name string) (Skill, error) {
-	skillPath := filepath.Join(l.workspacePath, "skills", name, "SKILL.md")
+	files := config.DefaultWorkspaceFiles()
+	legacy := config.LegacyWorkspaceFiles()
+	skillPath := config.ResolveWorkspaceFilePath(filepath.Join(l.workspacePath, "skills", name), files.Skill, legacy.Skill)
 	return l.loadSkill(skillPath)
 }
 
-// loadSkill reads and parses a SKILL.md file.
+// loadSkill reads and parses a skill markdown file.
 func (l *Loader) loadSkill(skillPath string) (Skill, error) {
 	content, err := os.ReadFile(skillPath)
 	if err != nil {
@@ -69,7 +75,7 @@ func (l *Loader) loadSkill(skillPath string) (Skill, error) {
 	// Parse frontmatter
 	lines := strings.Split(string(content), "\n")
 	if len(lines) < 3 || lines[0] != "---" {
-		return Skill{}, fmt.Errorf("invalid SKILL.md format: missing frontmatter")
+		return Skill{}, fmt.Errorf("invalid skill.md format: missing frontmatter")
 	}
 
 	skill := Skill{}

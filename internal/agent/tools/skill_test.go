@@ -31,7 +31,7 @@ func TestSkillManager_CreateSkill(t *testing.T) {
 	}
 
 	// Verify file was created
-	content, err := root.ReadFile("skills/test-skill/SKILL.md")
+	content, err := root.ReadFile("skills/test-skill/skill.md")
 	if err != nil {
 		t.Fatalf("Failed to read created skill: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestCreateSkillTool_Execute(t *testing.T) {
 	}
 
 	// Verify skill was created
-	_, err = root.Stat("skills/test-skill/SKILL.md")
+	_, err = root.Stat("skills/test-skill/skill.md")
 	if os.IsNotExist(err) {
 		t.Error("Skill file was not created")
 	}
