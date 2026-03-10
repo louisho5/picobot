@@ -61,7 +61,7 @@ type functionDef struct {
 
 type messageJSON struct {
 	Role       string         `json:"role"`
-	Content    string         `json:"content"`
+	Content    *string        `json:"content"`
 	ToolCallID string         `json:"tool_call_id,omitempty"`
 	ToolCalls  []toolCallJSON `json:"tool_calls,omitempty"`
 }
@@ -91,16 +91,20 @@ type chatResponse struct {
 
 // Chat calls an OpenAI-compatible chat completion endpoint and returns a simplified response.
 func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message, tools []ToolDefinition, model string) (LLMResponse, error) {
-	if p.APIKey == "" {
-		return LLMResponse{}, errors.New("OpenAI provider: API key is not configured")
-	}
 	if model == "" {
 		model = p.GetDefaultModel()
 	}
 
 	reqBody := chatRequest{Model: model, Messages: make([]messageJSON, 0, len(messages)), MaxTokens: p.MaxTokens}
 	for _, m := range messages {
-		mj := messageJSON{Role: m.Role, Content: m.Content, ToolCallID: m.ToolCallID}
+		mj := messageJSON{Role: m.Role, ToolCallID: m.ToolCallID}
+		// OpenAI spec: assistant messages with tool_calls must have content: null (not "")
+		if m.Content == "" && len(m.ToolCalls) > 0 {
+			mj.Content = nil
+		} else {
+			c := m.Content
+			mj.Content = &c
+		}
 		// Convert provider ToolCall to JSON-serializable toolCallJSON
 		for _, tc := range m.ToolCalls {
 			argsBytes, _ := json.Marshal(tc.Arguments)
@@ -146,7 +150,9 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message, tools []T
 		return LLMResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+p.APIKey)
+	if p.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+p.APIKey)
+	}
 
 	resp, err := p.Client.Do(req)
 	if err != nil {
