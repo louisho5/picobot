@@ -83,7 +83,7 @@ docker compose up -d
 go build -o picobot ./cmd/picobot
 ./picobot onboard                     # creates ~/.picobot config + workspace
 ./picobot agent -m "Hello!"           # single-shot query
-./picobot channels login              # login to channels (Telegram, Discord, WhatsApp)
+./picobot channels login              # login to channels (Telegram, Discord, Slack, WhatsApp)
 ./picobot gateway                     # long-running mode with Telegram
 ```
 
@@ -95,7 +95,7 @@ Actually the logic is simple and straightforward. Messages flow through a **Chat
   <img src="how-it-works.png" alt="How Picobot Works" width="600">
 </p>
 
-Notes: Channel refers to communication channels (e.g., Telegram, Discord, WhatsApp, etc.).
+Notes: Channel refers to communication channels (e.g., Telegram, Discord, Slack, WhatsApp, etc.).
 
 ## Features
 
@@ -170,6 +170,19 @@ The bot will respond when mentioned in servers, or to all messages in DMs.
 
 See [HOW_TO_START.md](HOW_TO_START.md) for a detailed Discord Bot walkthrough.
 
+### Slack Integration
+
+Connect your agent to Slack via Socket Mode:
+
+1. Go to [Slack API Apps](https://api.slack.com/apps) and create an app
+2. Enable **Socket Mode** and generate an App-Level Token (`xapp-...`)
+3. Add Bot Token scopes: `app_mentions:read`, `chat:write`, `channels:history`, `groups:history`, `im:history`, `mpim:history`, `files:read`
+4. Enable Event Subscriptions and subscribe to: `app_mention`, `message.im`
+5. Install the app to your workspace and copy the Bot Token (`xoxb-...`)
+6. Add to config under `channels.slack` in your `config.json`
+
+The bot responds when mentioned in channels, and responds to all DMs from allowed users (DMs ignore the channel allowlist).
+
 ### Heartbeat
 
 A configurable periodic check (default: 60s) that reads `HEARTBEAT.md` for scheduled tasks — like a personal cron with natural language.
@@ -218,7 +231,7 @@ picobot version                        # print version
 picobot onboard                        # create config + workspace
 picobot agent -m "..."                 # one-shot query
 picobot agent -M model -m "..."        # query with specific model
-picobot channels login                 # login to channels (Telegram, Discord, WhatsApp)
+picobot channels login                 # login to channels (Telegram, Discord, Slack, WhatsApp)
 picobot gateway                        # start long-running agent
 picobot memory read today|long         # read memory
 picobot memory append today|long -c "" # append to memory
@@ -263,7 +276,7 @@ embeds/               Embedded assets (sample skills)
 internal/
   agent/              Agent loop, context, tools, skills
   chat/               Chat message hub
-  channels/           Telegram, Discord
+  channels/           Telegram, Discord, Slack, WhatsApp
   config/             Config schema, loader, onboarding
   cron/               Cron scheduler
   heartbeat/          Periodic task checker

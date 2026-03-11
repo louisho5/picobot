@@ -5,6 +5,7 @@ go 1.26
 require (
 	github.com/bwmarrin/discordgo v0.28.1
 	github.com/mdp/qrterminal/v3 v3.2.1
+	github.com/slack-go/slack v0.14.0
 	github.com/spf13/cobra v1.7.0
 	go.mau.fi/whatsmeow v0.0.0-20260219150138-7ae702b1eed4
 	modernc.org/sqlite v1.46.1

@@ -54,6 +54,32 @@ if [ -n "${DISCORD_ALLOW_FROM}" ]; then
   jq --argjson allow "${ALLOW_JSON}" '.channels.discord.allowFrom = $allow' "${CONFIG}" > "$TMP" && mv "$TMP" "${CONFIG}"
 fi
 
+if [ -n "${SLACK_APP_TOKEN}" ]; then
+  echo "Applying SLACK_APP_TOKEN from environment..."
+  TMP=$(mktemp)
+  jq --arg token "${SLACK_APP_TOKEN}" '.channels.slack.enabled = true | .channels.slack.appToken = $token' "${CONFIG}" >"$TMP" && mv "$TMP" "${CONFIG}"
+fi
+
+if [ -n "${SLACK_BOT_TOKEN}" ]; then
+  echo "Applying SLACK_BOT_TOKEN from environment..."
+  TMP=$(mktemp)
+  jq --arg token "${SLACK_BOT_TOKEN}" '.channels.slack.enabled = true | .channels.slack.botToken = $token' "${CONFIG}" >"$TMP" && mv "$TMP" "${CONFIG}"
+fi
+
+if [ -n "${SLACK_ALLOW_USERS}" ]; then
+  echo "Applying SLACK_ALLOW_USERS from environment..."
+  ALLOW_JSON=$(echo "${SLACK_ALLOW_USERS}" | jq -R 'split(",")')
+  TMP=$(mktemp)
+  jq --argjson allow "${ALLOW_JSON}" '.channels.slack.allowUsers = $allow' "${CONFIG}" >"$TMP" && mv "$TMP" "${CONFIG}"
+fi
+
+if [ -n "${SLACK_ALLOW_CHANNELS}" ]; then
+  echo "Applying SLACK_ALLOW_CHANNELS from environment..."
+  ALLOW_JSON=$(echo "${SLACK_ALLOW_CHANNELS}" | jq -R 'split(",")')
+  TMP=$(mktemp)
+  jq --argjson allow "${ALLOW_JSON}" '.channels.slack.allowChannels = $allow' "${CONFIG}" >"$TMP" && mv "$TMP" "${CONFIG}"
+fi
+
 if [ -n "${PICOBOT_MODEL}" ]; then
   echo "Applying PICOBOT_MODEL from environment..."
   TMP=$(mktemp)

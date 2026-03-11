@@ -24,6 +24,7 @@ type AgentDefaults struct {
 type ChannelsConfig struct {
 	Telegram TelegramConfig `json:"telegram"`
 	Discord  DiscordConfig  `json:"discord"`
+	Slack    SlackConfig    `json:"slack"`
 	WhatsApp WhatsAppConfig `json:"whatsapp"`
 }
 
@@ -37,6 +38,14 @@ type TelegramConfig struct {
 	Enabled   bool     `json:"enabled"`
 	Token     string   `json:"token"`
 	AllowFrom []string `json:"allowFrom"`
+}
+
+type SlackConfig struct {
+	Enabled       bool     `json:"enabled"`
+	AppToken      string   `json:"appToken"`
+	BotToken      string   `json:"botToken"`
+	AllowUsers    []string `json:"allowUsers"`
+	AllowChannels []string `json:"allowChannels"`
 }
 
 type WhatsAppConfig struct {

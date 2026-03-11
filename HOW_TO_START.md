@@ -21,7 +21,7 @@ Picobot ships in two variants:
 | **Full** (default) | `go build ./cmd/picobot` | ~31 MB | ✅ included |
 | **Lite** | `go build -tags lite ./cmd/picobot` | ~13 MB | ❌ excluded |
 
-The **lite** build is designed for resource-constrained environments (IoT, cheap VPS, minimal servers) where every megabyte matters. It includes all core features — agent, Telegram, Discord, memory, skills, cron — but strips out large optional packages like WhatsApp. If you don't need WhatsApp (or other heavy integrations added in the future), lite is the right choice.
+The **lite** build is designed for resource-constrained environments (IoT, cheap VPS, minimal servers) where every megabyte matters. It includes all core features — agent, Telegram, Discord, Slack, memory, skills, cron — but strips out large optional packages like WhatsApp. If you don't need WhatsApp (or other heavy integrations added in the future), lite is the right choice.
 
 The **full** build is the default. If you're unsure, start here.
 
@@ -131,7 +131,7 @@ Edit `~/.picobot/workspace/USER.md` to fill in your name, timezone, preferences,
 ./picobot agent -M "google/gemini-2.5-flash" -m "What is 2+2?"
 ```
 
-### Login to channels (Telegram, Discord, WhatsApp)
+### Login to channels (Telegram, Discord, Slack, WhatsApp)
 
 ```sh
 ./picobot channels login
@@ -143,7 +143,7 @@ Edit `~/.picobot/workspace/USER.md` to fill in your name, timezone, preferences,
 ./picobot gateway
 ```
 
-This starts the agent loop, heartbeat, and any enabled channels (e.g., Telegram, Discord).
+This starts the agent loop, heartbeat, and any enabled channels (e.g., Telegram, Discord, Slack).
 
 ## CLI Commands
 
@@ -151,7 +151,7 @@ This starts the agent loop, heartbeat, and any enabled channels (e.g., Telegram,
 |---------|-------------|
 | `picobot version` | Print version |
 | `picobot onboard` | Create default config and workspace |
-| `picobot channels login` | Interactively connect Telegram, Discord, or WhatsApp |
+| `picobot channels login` | Interactively connect Telegram, Discord, Slack, or WhatsApp |
 | `picobot agent -m "..."` | Run a single-shot agent query |
 | `picobot agent -M model -m "..."` | Query with a specific model |
 | `picobot gateway` | Start long-running gateway |
@@ -377,6 +377,81 @@ Edit `~/.picobot/config.json` and add your Discord settings:
 | `enabled` | Set to `true` to activate the Discord channel |
 | `token` | The bot token from the Developer Portal |
 | `allowFrom` | List of Discord user IDs allowed to chat. Empty `[]` = anyone can use it |
+
+---
+
+## Setting Up Slack
+
+Picobot connects to Slack using **Socket Mode**, so no public HTTP endpoint is required.
+
+### 1. Create a Slack App
+
+Go to [Slack API Apps](https://api.slack.com/apps) and click **"Create New App"**.
+
+### 2. Enable Socket Mode
+
+In your app settings, open **Socket Mode** and enable it. Generate an **App-Level Token** with the `connections:write` scope. It starts with `xapp-`.
+
+### 3. Configure Bot Scopes
+
+Under **OAuth & Permissions**, add these **Bot Token Scopes**:
+
+- `app_mentions:read`
+- `chat:write`
+- `channels:history`
+- `groups:history`
+- `im:history`
+- `mpim:history`
+- `files:read`
+
+### 4. Enable Event Subscriptions
+
+Enable **Event Subscriptions** and add these **Bot Events**:
+
+- `app_mention`
+- `message.im`
+
+### 5. Install the App
+
+Install the app to your workspace and copy the **Bot Token** (starts with `xoxb-`).
+
+### 6. Configure Picobot
+
+You can configure Slack either via the interactive wizard or manually.
+
+**Option A: interactive wizard**
+
+```sh
+./picobot channels login
+```
+
+Select **3) Slack**, then follow the prompts — it will ask for your App Token, Bot Token, and allowlists, enable the channel, and save the config automatically.
+
+**Option B: edit config manually**
+
+Edit `~/.picobot/config.json` and add your Slack settings:
+
+```json
+{
+  "channels": {
+    "slack": {
+      "enabled": true,
+      "appToken": "xapp-1-AAAAAAAAAAAAAAAAAAAA",
+      "botToken": "xoxb-AAAAAAAAAA-AAAAAAAAAA-AAAAAAAAAAAAAAAAAAAAAA",
+      "allowUsers": ["U0123456789"],
+      "allowChannels": ["C0123456789"]
+    }
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `enabled` | Set to `true` to activate the Slack channel |
+| `appToken` | App-Level Token for Socket Mode (`xapp-...`) |
+| `botToken` | Bot Token for Web API (`xoxb-...`) |
+| `allowUsers` | List of Slack user IDs allowed to chat. Empty `[]` = anyone can use it |
+| `allowChannels` | List of Slack channel IDs allowed to chat. Empty `[]` = all channels (DMs ignore this list) |
 
 ### 8. Start the Gateway
 

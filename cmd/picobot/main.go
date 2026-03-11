@@ -60,12 +60,12 @@ func NewRootCmd() *cobra.Command {
 	// channels command — connect and configure messaging channels interactively.
 	channelsCmd := &cobra.Command{
 		Use:   "channels",
-		Short: "Manage channel connections (Telegram, Discord, WhatsApp)",
+		Short: "Manage channel connections (Telegram, Discord, Slack, WhatsApp)",
 	}
 
 	loginCmd := &cobra.Command{
 		Use:   "login",
-		Short: "Interactively connect a channel (Telegram, Discord, or WhatsApp)",
+		Short: "Interactively connect a channel (Telegram, Discord, Slack, or WhatsApp)",
 		Run: func(cmd *cobra.Command, args []string) {
 			reader := bufio.NewReader(os.Stdin)
 
@@ -73,9 +73,10 @@ func NewRootCmd() *cobra.Command {
 			fmt.Println()
 			fmt.Println("  1) Telegram")
 			fmt.Println("  2) Discord")
-			fmt.Println("  3) WhatsApp")
+			fmt.Println("  3) Slack")
+			fmt.Println("  4) WhatsApp")
 			fmt.Println()
-			fmt.Print("Enter 1, 2 or 3: ")
+			fmt.Print("Enter 1, 2, 3 or 4: ")
 
 			choice, _ := reader.ReadString('\n')
 			choice = strings.TrimSpace(strings.ToLower(choice))
@@ -96,10 +97,12 @@ func NewRootCmd() *cobra.Command {
 				setupTelegramInteractive(reader, cfg, cfgPath)
 			case "2", "discord":
 				setupDiscordInteractive(reader, cfg, cfgPath)
-			case "3", "whatsapp":
+			case "3", "slack":
+				setupSlackInteractive(reader, cfg, cfgPath)
+			case "4", "whatsapp":
 				setupWhatsAppInteractive(cfg, cfgPath)
 			default:
-				fmt.Fprintf(os.Stderr, "invalid choice %q — please enter 1, 2 or 3\n", choice)
+				fmt.Fprintf(os.Stderr, "invalid choice %q — please enter 1, 2, 3 or 4\n", choice)
 			}
 		},
 	}
@@ -151,7 +154,7 @@ func NewRootCmd() *cobra.Command {
 
 	gatewayCmd := &cobra.Command{
 		Use:   "gateway",
-		Short: "Start long-running gateway (agent, telegram, heartbeat)",
+		Short: "Start long-running gateway (agent, channels, heartbeat)",
 		Run: func(cmd *cobra.Command, args []string) {
 			hub := chat.NewHub(200)
 			cfg, _ := config.LoadConfig()
@@ -210,6 +213,13 @@ func NewRootCmd() *cobra.Command {
 			if cfg.Channels.Discord.Enabled {
 				if err := channels.StartDiscord(ctx, hub, cfg.Channels.Discord.Token, cfg.Channels.Discord.AllowFrom); err != nil {
 					fmt.Fprintf(os.Stderr, "failed to start discord: %v\n", err)
+				}
+			}
+
+			// start slack if enabled
+			if cfg.Channels.Slack.Enabled {
+				if err := channels.StartSlack(ctx, hub, cfg.Channels.Slack.AppToken, cfg.Channels.Slack.BotToken, cfg.Channels.Slack.AllowUsers, cfg.Channels.Slack.AllowChannels); err != nil {
+					fmt.Fprintf(os.Stderr, "failed to start slack: %v\n", err)
 				}
 			}
 
@@ -560,6 +570,66 @@ func setupDiscordInteractive(reader *bufio.Reader, cfg config.Config, cfgPath st
 
 	fmt.Println()
 	fmt.Println("Discord configured! Run 'picobot gateway' to start.")
+}
+
+func setupSlackInteractive(reader *bufio.Reader, cfg config.Config, cfgPath string) {
+	fmt.Println()
+	fmt.Println("=== Slack Setup ===")
+	fmt.Println()
+	fmt.Println("You need a Slack App with Socket Mode enabled:")
+	fmt.Println("  1. Create or select an app in https://api.slack.com/apps")
+	fmt.Println("  2. Enable Socket Mode and generate an App-Level Token (xapp-...)")
+	fmt.Println("  3. Add Bot Token scopes:")
+	fmt.Println("     - app_mentions:read")
+	fmt.Println("     - chat:write")
+	fmt.Println("     - channels:history")
+	fmt.Println("     - groups:history")
+	fmt.Println("     - im:history")
+	fmt.Println("     - mpim:history")
+	fmt.Println("     - files:read")
+	fmt.Println("  4. Create a Bot Token (xoxb-...) and install the app to your workspace")
+	fmt.Println()
+
+	appToken := promptLine(reader, "App token (xapp-...): ")
+	if appToken == "" {
+		fmt.Fprintln(os.Stderr, "error: app token cannot be empty")
+		return
+	}
+	botToken := promptLine(reader, "Bot token (xoxb-...): ")
+	if botToken == "" {
+		fmt.Fprintln(os.Stderr, "error: bot token cannot be empty")
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("To restrict who can message your bot, enter Slack user IDs (U...).")
+	fmt.Println("Leave blank to allow everyone.")
+	fmt.Println()
+
+	allowUsersStr := promptLine(reader, "Allowed user IDs (comma-separated, blank = everyone): ")
+	allowUsers := parseAllowFrom(allowUsersStr)
+
+	fmt.Println()
+	fmt.Println("To restrict which channels the bot listens to, enter Slack channel IDs (C..., G..., D...).")
+	fmt.Println("Leave blank to allow all channels.")
+	fmt.Println()
+
+	allowChannelsStr := promptLine(reader, "Allowed channel IDs (comma-separated, blank = all): ")
+	allowChannels := parseAllowFrom(allowChannelsStr)
+
+	cfg.Channels.Slack.Enabled = true
+	cfg.Channels.Slack.AppToken = appToken
+	cfg.Channels.Slack.BotToken = botToken
+	cfg.Channels.Slack.AllowUsers = allowUsers
+	cfg.Channels.Slack.AllowChannels = allowChannels
+
+	if err := config.SaveConfig(cfg, cfgPath); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to save config: %v\n", err)
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("Slack configured! Run 'picobot gateway' to start.")
 }
 
 func setupWhatsAppInteractive(cfg config.Config, cfgPath string) {

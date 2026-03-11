@@ -77,12 +77,15 @@ func TestDefaultConfig_IncludesWhatsApp(t *testing.T) {
 		t.Error("WhatsApp should be disabled in the default config")
 	}
 
-	// Telegram and Discord should also be present and disabled.
+	// Telegram, Discord, and Slack should also be present and disabled.
 	if cfg.Channels.Telegram.Enabled {
 		t.Error("Telegram should be disabled in the default config")
 	}
 	if cfg.Channels.Discord.Enabled {
 		t.Error("Discord should be disabled in the default config")
+	}
+	if cfg.Channels.Slack.Enabled {
+		t.Error("Slack should be disabled in the default config")
 	}
 }
 

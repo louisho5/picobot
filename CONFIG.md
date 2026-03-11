@@ -142,7 +142,7 @@ If no valid provider is configured, Picobot uses a **Stub** provider (echoes bac
 
 ## channels
 
-Chat channel integrations. Supports Telegram, Discord, and WhatsApp.
+Chat channel integrations. Supports Telegram, Discord, Slack, and WhatsApp.
 
 ### channels.telegram
 
@@ -192,6 +192,32 @@ The Discord bot uses the Gateway WebSocket API for receiving messages and the RE
 
 **Required Privileged Intents (enable in Developer Portal → Bot):**
 - Message Content Intent
+
+### channels.slack
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `false` | Set to `true` to start the Slack bot. |
+| `appToken` | string | `""` | Slack App-Level Token (Socket Mode), starts with `xapp-`. |
+| `botToken` | string | `""` | Slack Bot Token, starts with `xoxb-`. |
+| `allowUsers` | string[] | `[]` | List of allowed Slack user IDs. Empty = allow all. |
+| `allowChannels` | string[] | `[]` | List of allowed Slack channel IDs (C..., G..., D...). Empty = allow all. DMs ignore this list. |
+
+```json
+{
+  "channels": {
+    "slack": {
+      "enabled": true,
+      "appToken": "xapp-1-AAAAAAAAAAAAAAAAAAAA",
+      "botToken": "xoxb-AAAAAAAAAA-AAAAAAAAAA-AAAAAAAAAAAAAAAAAAAAAA",
+      "allowUsers": ["U0123456789"],
+      "allowChannels": ["C0123456789"]
+    }
+  }
+}
+```
+
+The Slack bot uses Socket Mode. In channels, the bot responds only when mentioned. In DMs, the bot responds to all messages from allowed users and ignores `allowChannels`. Thread replies are preserved when the inbound message is in a thread.
 
 ### channels.whatsapp
 
@@ -273,6 +299,10 @@ When running with Docker, you can override config values using environment varia
 | `TELEGRAM_ALLOW_FROM` | `channels.telegram.allowFrom` | Comma-separated allowed Telegram user IDs |
 | `DISCORD_BOT_TOKEN` | `channels.discord.token` | Discord bot token (also enables the channel) |
 | `DISCORD_ALLOW_FROM` | `channels.discord.allowFrom` | Comma-separated allowed Discord user IDs |
+| `SLACK_APP_TOKEN` | `channels.slack.appToken` | Slack App-Level Token (also enables the channel) |
+| `SLACK_BOT_TOKEN` | `channels.slack.botToken` | Slack Bot Token (also enables the channel) |
+| `SLACK_ALLOW_USERS` | `channels.slack.allowUsers` | Comma-separated allowed Slack user IDs |
+| `SLACK_ALLOW_CHANNELS` | `channels.slack.allowChannels` | Comma-separated allowed Slack channel IDs |
 
 ---
 

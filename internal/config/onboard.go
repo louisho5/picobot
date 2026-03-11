@@ -25,6 +25,7 @@ func DefaultConfig() Config {
 		Channels: ChannelsConfig{
 			Telegram: TelegramConfig{Enabled: false, Token: "", AllowFrom: []string{}},
 			Discord:  DiscordConfig{Enabled: false, Token: "", AllowFrom: []string{}},
+			Slack:    SlackConfig{Enabled: false, AppToken: "", BotToken: "", AllowUsers: []string{}, AllowChannels: []string{}},
 			WhatsApp: WhatsAppConfig{Enabled: false, DBPath: "", AllowFrom: []string{}},
 		},
 		Providers: ProvidersConfig{

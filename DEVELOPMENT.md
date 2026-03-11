@@ -54,7 +54,7 @@ The binary will be created in the current directory.
 # Try a quick query
 ./picobot agent -m "Hello!"
 
-# Login to channels (Telegram, Discord, WhatsApp)
+# Login to channels (Telegram, Discord, Slack, WhatsApp)
 ./picobot channels login
 
 # Start the full gateway (includes channels, heartbeat, etc.)
@@ -172,7 +172,7 @@ Picobot ships in two variants controlled by the `lite` Go build tag:
 
 Some optional features — starting with WhatsApp via [whatsmeow](https://github.com/tulir/whatsmeow) + [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) — pull in large dependencies that add ~13 MB to the binary. We know there are some users running Picobot on a standard server or desktop never need those features and shouldn't have to pay the size cost.
 
-The lite build is aimed at resource-constrained environments: IoT devices, cheap VPS with limited storage, or any deployment where a ~9 MB static binary is strongly preferred over a ~22 MB one. It includes every core feature (agent loop, Telegram, Discord, memory, skills, cron, heartbeat) but omits packages gated behind the `!lite` build tag.
+The lite build is aimed at resource-constrained environments: IoT devices, cheap VPS with limited storage, or any deployment where a ~9 MB static binary is strongly preferred over a ~22 MB one. It includes every core feature (agent loop, Telegram, Discord, Slack, memory, skills, cron, heartbeat) but omits packages gated behind the `!lite` build tag.
 
 As new optional heavy integrations are added to Picobot in the future, they will follow the same pattern — included in the full build by default, excluded from the lite build.
 
