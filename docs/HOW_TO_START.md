@@ -525,7 +525,7 @@ Which channel would you like to connect?
   3) Slack
   4) WhatsApp
 
-Enter 1, 2, 3 or 4: 3
+Enter 1, 2, 3 or 4: 4
 
 === WhatsApp Setup ===
 
