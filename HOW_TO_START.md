@@ -384,17 +384,23 @@ Edit `~/.picobot/config.json` and add your Discord settings:
 
 Picobot connects to Slack using **Socket Mode**, so no public HTTP endpoint is required.
 
-### 1. Create a Slack App
+### 1. Create or Select a Slack App
 
-Go to [Slack API Apps](https://api.slack.com/apps) and click **"Create New App"**.
+Go to [Slack API Apps](https://api.slack.com/apps) and create a new app or select an existing one.
 
 ### 2. Enable Socket Mode
 
-In your app settings, open **Socket Mode** and enable it. Generate an **App-Level Token** with the `connections:write` scope. It starts with `xapp-`.
+Go to **Settings → Socket Mode** and enable it.
 
-### 3. Configure Bot Scopes
+### 3. Generate an App-Level Token
 
-Under **OAuth & Permissions**, add these **Bot Token Scopes**:
+Go to **Settings → Socket Mode → App Level Token**. Generate a token with the `connections:write` scope. Copy it — it starts with `xapp-`.
+
+> Save this token now, you will need it shortly.
+
+### 4. Configure Bot Token Scopes
+
+Go to **Features → OAuth & Permissions → Bot Token Scopes** and add:
 
 - `app_mentions:read`
 - `chat:write`
@@ -404,22 +410,24 @@ Under **OAuth & Permissions**, add these **Bot Token Scopes**:
 - `mpim:history`
 - `files:read`
 
-### 4. Enable Event Subscriptions
+### 5. Enable Event Subscriptions
 
-Enable **Event Subscriptions** and add these **Bot Events**:
+Go to **Features → Event Subscriptions** and enable Events. Then go to **Subscribe to bot events** and add:
 
 - `app_mention`
 - `message.im`
 
-### 5. Install the App
+### 6. Install the App
 
-Install the app to your workspace and copy the **Bot Token** (starts with `xoxb-`).
+Click **Install to Workspace** and copy the **Bot User OAuth Token** (starts with `xoxb-`).
 
-### 6. Configure Picobot
+> Save this token as well before continuing.
 
-You can configure Slack either via the interactive wizard or manually.
+### 7. Configure Picobot
 
-**Option A: interactive wizard**
+#### Option 1
+
+Run the interactive channel login wizard:
 
 ```sh
 ./picobot channels login
@@ -427,7 +435,7 @@ You can configure Slack either via the interactive wizard or manually.
 
 Select **3) Slack**, then follow the prompts — it will ask for your App Token, Bot Token, and allowlists, enable the channel, and save the config automatically.
 
-**Option B: edit config manually**
+#### Option 2
 
 Edit `~/.picobot/config.json` and add your Slack settings:
 
@@ -459,10 +467,10 @@ Edit `~/.picobot/config.json` and add your Slack settings:
 ./picobot gateway
 ```
 
-Now mention your bot in a Discord server (`@Picobot hello!`) or send it a DM. Picobot will respond!
+Now mention your bot in a Slack channel (`@Picobot hello!`) or send it a DM. Picobot will respond!
 
 **How the bot responds:**
-- **In servers** — only when @-mentioned (e.g. `@Picobot what's the weather?`)
+- **In channels** — only when @-mentioned (e.g. `@Picobot what's the weather?`)
 - **In DMs** — responds to every message
 
 ---

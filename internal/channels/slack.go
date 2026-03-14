@@ -13,6 +13,13 @@ import (
 	"github.com/slack-go/slack/socketmode"
 )
 
+// slackPoster is the subset of *slack.Client used for posting outbound messages.
+// It exists to enable testing without a live Slack connection, mirroring the
+// discordSender pattern used by the Discord channel.
+type slackPoster interface {
+	PostMessageContext(ctx context.Context, channelID string, options ...slack.MsgOption) (string, string, error)
+}
+
 // StartSlack starts a Slack bot using Socket Mode.
 // allowUsers restricts which Slack user IDs may send messages; empty means allow all.
 // allowChannels restricts which Slack channel IDs may send messages; empty means allow all.
@@ -22,6 +29,12 @@ func StartSlack(ctx context.Context, hub *chat.Hub, appToken, botToken string, a
 	}
 	if botToken == "" {
 		return fmt.Errorf("slack bot token not provided")
+	}
+	if !strings.HasPrefix(appToken, "xapp-") {
+		return fmt.Errorf("slack app token must start with xapp-")
+	}
+	if !strings.HasPrefix(botToken, "xoxb-") {
+		return fmt.Errorf("slack bot token must start with xoxb-")
 	}
 
 	api := slack.New(
@@ -59,7 +72,7 @@ func StartSlack(ctx context.Context, hub *chat.Hub, appToken, botToken string, a
 
 type slackClient struct {
 	socket       *socketmode.Client
-	api          *slack.Client
+	poster       slackPoster
 	hub          *chat.Hub
 	outCh        <-chan chat.Outbound
 	botID        string
@@ -68,7 +81,7 @@ type slackClient struct {
 	ctx          context.Context
 }
 
-func newSlackClient(ctx context.Context, socket *socketmode.Client, api *slack.Client, hub *chat.Hub, botID string, allowUsers, allowChannels []string) *slackClient {
+func newSlackClient(ctx context.Context, socket *socketmode.Client, poster slackPoster, hub *chat.Hub, botID string, allowUsers, allowChannels []string) *slackClient {
 	allowedUsers := make(map[string]struct{}, len(allowUsers))
 	for _, id := range allowUsers {
 		allowedUsers[id] = struct{}{}
@@ -80,7 +93,7 @@ func newSlackClient(ctx context.Context, socket *socketmode.Client, api *slack.C
 
 	return &slackClient{
 		socket:       socket,
-		api:          api,
+		poster:       poster,
 		hub:          hub,
 		outCh:        hub.Subscribe("slack"),
 		botID:        botID,
@@ -148,7 +161,7 @@ func (c *slackClient) handleMention(ev *slackevents.AppMentionEvent) {
 	chatID := formatSlackChatID(ev.Channel, threadTS)
 	teamID := firstNonEmpty(ev.SourceTeam, ev.UserTeam)
 
-	log.Printf("slack: mention from %s in %s: %s", ev.User, ev.Channel, truncateSlack(content, 50))
+	log.Printf("slack: mention from %s in %s: %s", ev.User, ev.Channel, truncate(content, 50))
 
 	c.hub.In <- chat.Inbound{
 		Channel:   "slack",
@@ -183,8 +196,7 @@ func (c *slackClient) handleMessage(ev *slackevents.MessageEvent) {
 		return
 	}
 
-	content := ev.Text
-	content = strings.TrimSpace(content)
+	content := strings.TrimSpace(ev.Text)
 	content = appendSlackAttachments(content, ev.Files)
 	content = strings.TrimSpace(content)
 	if content == "" {
@@ -195,7 +207,7 @@ func (c *slackClient) handleMessage(ev *slackevents.MessageEvent) {
 	chatID := formatSlackChatID(ev.Channel, threadTS)
 	teamID := firstNonEmpty(ev.SourceTeam, ev.UserTeam)
 
-	log.Printf("slack: message from %s in %s: %s", ev.User, ev.Channel, truncateSlack(content, 50))
+	log.Printf("slack: message from %s in %s: %s", ev.User, ev.Channel, truncate(content, 50))
 
 	c.hub.In <- chat.Inbound{
 		Channel:   "slack",
@@ -224,12 +236,12 @@ func (c *slackClient) runOutbound() {
 				log.Printf("slack: invalid chat ID %q", out.ChatID)
 				continue
 			}
-			for _, chunk := range splitSlackMessage(out.Content, 4000) {
+			for _, chunk := range splitMessage(out.Content, 4000) {
 				opts := []slack.MsgOption{slack.MsgOptionText(chunk, false)}
 				if threadTS != "" {
 					opts = append(opts, slack.MsgOptionTS(threadTS))
 				}
-				if _, _, err := c.api.PostMessageContext(c.ctx, channelID, opts...); err != nil {
+				if _, _, err := c.poster.PostMessageContext(c.ctx, channelID, opts...); err != nil {
 					log.Printf("slack: send error: %v", err)
 				}
 			}
@@ -317,43 +329,4 @@ func splitSlackChatID(chatID string) (string, string) {
 		return parts[0], parts[1]
 	}
 	return chatID, ""
-}
-
-func truncateSlack(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
-}
-
-func splitSlackMessage(content string, maxLen int) []string {
-	runes := []rune(content)
-	if len(runes) <= maxLen {
-		return []string{content}
-	}
-
-	var chunks []string
-	for len(runes) > maxLen {
-		idx := maxLen
-		for i := maxLen - 1; i > 0; i-- {
-			if runes[i] == '\n' {
-				idx = i + 1
-				break
-			}
-		}
-		if idx == maxLen {
-			for i := maxLen - 1; i > 0; i-- {
-				if runes[i] == ' ' {
-					idx = i + 1
-					break
-				}
-			}
-		}
-		chunks = append(chunks, string(runes[:idx]))
-		runes = runes[idx:]
-	}
-	if len(runes) > 0 {
-		chunks = append(chunks, string(runes))
-	}
-	return chunks
 }
