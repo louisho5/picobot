@@ -26,7 +26,7 @@ import (
 	"github.com/local/picobot/internal/providers"
 )
 
-const version = "0.1.9"
+const version = "0.1.10"
 
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
