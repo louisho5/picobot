@@ -26,6 +26,7 @@ type ChannelsConfig struct {
 	Discord  DiscordConfig  `json:"discord"`
 	Slack    SlackConfig    `json:"slack"`
 	WhatsApp WhatsAppConfig `json:"whatsapp"`
+	Signal   SignalConfig   `json:"signal"`
 }
 
 type DiscordConfig struct {
@@ -51,6 +52,14 @@ type SlackConfig struct {
 type WhatsAppConfig struct {
 	Enabled   bool     `json:"enabled"`
 	DBPath    string   `json:"dbPath"`
+	AllowFrom []string `json:"allowFrom"`
+}
+
+type SignalConfig struct {
+	Enabled   bool     `json:"enabled"`
+	APIURL    string   `json:"apiURL"`
+	APIToken  string   `json:"apiToken"`
+	Number    string   `json:"number"`
 	AllowFrom []string `json:"allowFrom"`
 }
 
