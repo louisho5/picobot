@@ -60,12 +60,12 @@ func NewRootCmd() *cobra.Command {
 	// channels command — connect and configure messaging channels interactively.
 	channelsCmd := &cobra.Command{
 		Use:   "channels",
-		Short: "Manage channel connections (Telegram, Discord, Slack, WhatsApp)",
+		Short: "Manage channel connections (Telegram, Discord, Slack, WhatsApp, Signal)",
 	}
 
 	loginCmd := &cobra.Command{
 		Use:   "login",
-		Short: "Interactively connect a channel (Telegram, Discord, Slack, or WhatsApp)",
+		Short: "Interactively connect a channel (Telegram, Discord, Slack, WhatsApp, or Signal)",
 		Run: func(cmd *cobra.Command, args []string) {
 			reader := bufio.NewReader(os.Stdin)
 
@@ -75,8 +75,9 @@ func NewRootCmd() *cobra.Command {
 			fmt.Println("  2) Discord")
 			fmt.Println("  3) Slack")
 			fmt.Println("  4) WhatsApp")
+			fmt.Println("  5) Signal")
 			fmt.Println()
-			fmt.Print("Enter 1, 2, 3 or 4: ")
+			fmt.Print("Enter 1, 2, 3, 4 or 5: ")
 
 			choice, _ := reader.ReadString('\n')
 			choice = strings.TrimSpace(strings.ToLower(choice))
@@ -101,8 +102,10 @@ func NewRootCmd() *cobra.Command {
 				setupSlackInteractive(reader, cfg, cfgPath)
 			case "4", "whatsapp":
 				setupWhatsAppInteractive(cfg, cfgPath)
+			case "5", "signal":
+				setupSignalInteractive(reader, cfg, cfgPath)
 			default:
-				fmt.Fprintf(os.Stderr, "invalid choice %q — please enter 1, 2, 3 or 4\n", choice)
+				fmt.Fprintf(os.Stderr, "invalid choice %q — please enter 1, 2, 3, 4 or 5\n", choice)
 			}
 		},
 	}
@@ -236,6 +239,13 @@ func NewRootCmd() *cobra.Command {
 				}
 				if err := channels.StartWhatsApp(ctx, hub, dbPath, cfg.Channels.WhatsApp.AllowFrom); err != nil {
 					fmt.Fprintf(os.Stderr, "failed to start whatsapp: %v\n", err)
+				}
+			}
+
+			// start signal if enabled
+			if cfg.Channels.Signal.Enabled {
+				if err := channels.StartSignal(ctx, hub, cfg.Channels.Signal.APIURL, cfg.Channels.Signal.APIToken, cfg.Channels.Signal.Number, cfg.Channels.Signal.AllowFrom); err != nil {
+					fmt.Fprintf(os.Stderr, "failed to start signal: %v\n", err)
 				}
 			}
 
@@ -666,4 +676,55 @@ func setupWhatsAppInteractive(cfg config.Config, cfgPath string) {
 	}
 
 	fmt.Println("\nWhatsApp setup complete! Run 'picobot gateway' to start.")
+}
+
+func setupSignalInteractive(reader *bufio.Reader, cfg config.Config, cfgPath string) {
+	fmt.Println()
+	fmt.Println("=== Signal Setup ===")
+	fmt.Println()
+	fmt.Println("This integration uses the secured-signal-api proxy in front of signal-cli-rest-api.")
+	fmt.Println("  1. Deploy secured-signal-api (https://github.com/codeshelldev/secured-signal-api)")
+	fmt.Println("  2. Register or link a phone number in signal-cli-rest-api")
+	fmt.Println("  3. Note the API URL, Bearer token, and phone number")
+	fmt.Println()
+
+	apiURL := promptLine(reader, "API URL (e.g. http://localhost:8880): ")
+	if apiURL == "" {
+		fmt.Fprintln(os.Stderr, "error: API URL cannot be empty")
+		return
+	}
+
+	apiToken := promptLine(reader, "Bearer token: ")
+	if apiToken == "" {
+		fmt.Fprintln(os.Stderr, "error: bearer token cannot be empty")
+		return
+	}
+
+	number := promptLine(reader, "Phone number (e.g. +1234567890): ")
+	if number == "" {
+		fmt.Fprintln(os.Stderr, "error: phone number cannot be empty")
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("To restrict who can message your bot, enter phone numbers (e.g. +1234567890).")
+	fmt.Println("Leave blank to allow everyone.")
+	fmt.Println()
+
+	allowFromStr := promptLine(reader, "Allowed phone numbers (comma-separated, blank = everyone): ")
+	allowFrom := parseAllowFrom(allowFromStr)
+
+	cfg.Channels.Signal.Enabled = true
+	cfg.Channels.Signal.APIURL = apiURL
+	cfg.Channels.Signal.APIToken = apiToken
+	cfg.Channels.Signal.Number = number
+	cfg.Channels.Signal.AllowFrom = allowFrom
+
+	if err := config.SaveConfig(cfg, cfgPath); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to save config: %v\n", err)
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("Signal configured! Run 'picobot gateway' to start.")
 }
