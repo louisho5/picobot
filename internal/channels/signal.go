@@ -103,7 +103,9 @@ func startSignalWithSender(ctx context.Context, hub *chat.Hub, sender signalSend
 
 			readMessages(ctx, conn, hub, number, allowed)
 
-			conn.Close()
+			if err := conn.Close(); err != nil {
+				log.Printf("signal: websocket close error: %v", err)
+			}
 			log.Println("signal: websocket disconnected, reconnecting...")
 		}
 	}()

@@ -116,9 +116,16 @@ func TestSignal_InboundOutbound(t *testing.T) {
 			t.Logf("ws upgrade error: %v", err)
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("ws close error: %v", err)
+			}
+		}()
 
-		conn.WriteMessage(websocket.TextMessage, envelopeJSON)
+		if err := conn.WriteMessage(websocket.TextMessage, envelopeJSON); err != nil {
+			t.Logf("ws write error: %v", err)
+			return
+		}
 		close(wsSent)
 
 		// Keep the connection open until the test ends.
@@ -214,8 +221,15 @@ func TestSignal_GroupMessage(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
-		conn.WriteMessage(websocket.TextMessage, envelopeJSON)
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("ws close error: %v", err)
+			}
+		}()
+		if err := conn.WriteMessage(websocket.TextMessage, envelopeJSON); err != nil {
+			t.Logf("ws write error: %v", err)
+			return
+		}
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
 				return
@@ -230,7 +244,9 @@ func TestSignal_GroupMessage(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	startSignalWithSender(ctx, hub, sender, wsURL, "token", "+1234567890", nil)
+	if err := startSignalWithSender(ctx, hub, sender, wsURL, "token", "+1234567890", nil); err != nil {
+		t.Fatalf("startSignalWithSender failed: %v", err)
+	}
 
 	select {
 	case msg := <-hub.In:
@@ -264,8 +280,15 @@ func TestSignal_AllowFrom(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
-		conn.WriteMessage(websocket.TextMessage, envelopeJSON)
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("ws close error: %v", err)
+			}
+		}()
+		if err := conn.WriteMessage(websocket.TextMessage, envelopeJSON); err != nil {
+			t.Logf("ws write error: %v", err)
+			return
+		}
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
 				return
@@ -281,7 +304,9 @@ func TestSignal_AllowFrom(t *testing.T) {
 	defer cancel()
 
 	// Only allow +alloweduser
-	startSignalWithSender(ctx, hub, sender, wsURL, "token", "+1234567890", []string{"+alloweduser"})
+	if err := startSignalWithSender(ctx, hub, sender, wsURL, "token", "+1234567890", []string{"+alloweduser"}); err != nil {
+		t.Fatalf("startSignalWithSender failed: %v", err)
+	}
 
 	// The message should NOT arrive because the sender is not in the allowlist.
 	select {
@@ -322,10 +347,20 @@ func TestSignal_IgnoresNonDataMessages(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("ws close error: %v", err)
+			}
+		}()
 		// Send typing indicator first, then real message.
-		conn.WriteMessage(websocket.TextMessage, typingJSON)
-		conn.WriteMessage(websocket.TextMessage, realJSON)
+		if err := conn.WriteMessage(websocket.TextMessage, typingJSON); err != nil {
+			t.Logf("ws write error: %v", err)
+			return
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, realJSON); err != nil {
+			t.Logf("ws write error: %v", err)
+			return
+		}
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
 				return
@@ -340,7 +375,9 @@ func TestSignal_IgnoresNonDataMessages(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	startSignalWithSender(ctx, hub, sender, wsURL, "token", "+1234567890", nil)
+	if err := startSignalWithSender(ctx, hub, sender, wsURL, "token", "+1234567890", nil); err != nil {
+		t.Fatalf("startSignalWithSender failed: %v", err)
+	}
 
 	// Only the real message should arrive.
 	select {
@@ -374,8 +411,15 @@ func TestSignal_EchoSuppression(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
-		conn.WriteMessage(websocket.TextMessage, echoJSON)
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("ws close error: %v", err)
+			}
+		}()
+		if err := conn.WriteMessage(websocket.TextMessage, echoJSON); err != nil {
+			t.Logf("ws write error: %v", err)
+			return
+		}
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
 				return
@@ -390,7 +434,9 @@ func TestSignal_EchoSuppression(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	startSignalWithSender(ctx, hub, sender, wsURL, "token", "+1234567890", nil)
+	if err := startSignalWithSender(ctx, hub, sender, wsURL, "token", "+1234567890", nil); err != nil {
+		t.Fatalf("startSignalWithSender failed: %v", err)
+	}
 
 	select {
 	case msg := <-hub.In:
@@ -411,7 +457,11 @@ func TestSignal_BearerAuth(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Logf("ws close error: %v", err)
+			}
+		}()
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
 				return
@@ -426,7 +476,9 @@ func TestSignal_BearerAuth(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	startSignalWithSender(ctx, hub, sender, wsURL, "my-secret-token", "+1234567890", nil)
+	if err := startSignalWithSender(ctx, hub, sender, wsURL, "my-secret-token", "+1234567890", nil); err != nil {
+		t.Fatalf("startSignalWithSender failed: %v", err)
+	}
 
 	select {
 	case auth := <-authReceived:
