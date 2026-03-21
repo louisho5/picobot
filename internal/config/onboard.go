@@ -28,6 +28,7 @@ func DefaultConfig() Config {
 			Slack:    SlackConfig{Enabled: false, AppToken: "", BotToken: "", AllowUsers: []string{}, AllowChannels: []string{}},
 			WhatsApp: WhatsAppConfig{Enabled: false, DBPath: "", AllowFrom: []string{}},
 		},
+		MCPServers: map[string]MCPServerConfig{},
 		Providers: ProvidersConfig{
 			OpenAI: &ProviderConfig{APIKey: "sk-or-v1-REPLACE_ME", APIBase: "https://openrouter.ai/api/v1"},
 		},

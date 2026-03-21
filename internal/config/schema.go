@@ -2,9 +2,19 @@ package config
 
 // Config holds picobot configuration (minimal for v0).
 type Config struct {
-	Agents    AgentsConfig    `json:"agents"`
-	Channels  ChannelsConfig  `json:"channels"`
-	Providers ProvidersConfig `json:"providers"`
+	Agents     AgentsConfig               `json:"agents"`
+	MCPServers map[string]MCPServerConfig `json:"mcpServers"`
+	Channels   ChannelsConfig             `json:"channels"`
+	Providers  ProvidersConfig            `json:"providers"`
+}
+
+// MCPServerConfig describes a single MCP server connection.
+// Use Command+Args for stdio transport, or URL+Headers for HTTP transport.
+type MCPServerConfig struct {
+	Command string            `json:"command,omitempty"`
+	Args    []string          `json:"args,omitempty"`
+	URL     string            `json:"url,omitempty"`
+	Headers map[string]string `json:"headers,omitempty"`
 }
 
 type AgentsConfig struct {

@@ -21,6 +21,7 @@ internal/
   config/             Config schema, loader, onboarding
   cron/               Cron scheduler
   heartbeat/          Periodic task checker
+  mcp/                MCP client (stdio + HTTP transports)
   memory/             Memory read/write/rank
   providers/          OpenAI-compatible provider (OpenAI, OpenRouter, Ollama, etc.)
   session/            Session manager
@@ -306,6 +307,26 @@ Let's say you want to add a `database` tool that queries PostgreSQL:
    ```
 
 That's it. The agent loop will automatically expose it to the LLM and route tool calls to your implementation.
+
+### Connecting MCP servers (no code needed)
+
+Picobot has a built-in MCP client that connects to any MCP-compliant server at startup. No code changes are needed — just add an entry to `mcpServers` in `~/.picobot/config.json`:
+
+```json
+"mcpServers": {
+  "via-npx": {
+    "command": "npx",
+    "args": ["-y", "@some/mcp-server"]
+  }
+}
+```
+
+Picobot supports two transports:
+
+- **Stdio** — spawns the server as a subprocess (`command` + `args`). Works with `npx`, `uvx`, plain binaries, and `docker run --rm -i <image>`.
+- **HTTP** — POST to a remote endpoint (`url` + optional `headers`).
+
+Each tool the server declares is registered as `mcp_{server}_{tool}` and is immediately visible to the agent. The MCP client lives in `internal/mcp/client.go`; the tool bridge is `internal/agent/tools/mcp.go`.
 
 ### Adding a new LLM provider
 

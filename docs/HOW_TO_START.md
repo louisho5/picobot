@@ -165,7 +165,7 @@ This starts the agent loop, heartbeat, and any enabled channels (e.g., Telegram,
 
 ## Available Tools
 
-The agent has access to 16 tools:
+The agent has access to 16 built-in tools:
 
 | Tool | Purpose |
 |------|--------|
@@ -185,6 +185,12 @@ The agent has access to 16 tools:
 | `list_skills` | List available skills |
 | `read_skill` | Read a skill's content |
 | `delete_skill` | Delete a skill |
+
+### MCP Server Tools
+
+Additional tools are registered dynamically from any MCP servers listed in `mcpServers` in your `config.json`. Each tool emitted by a server is exposed to the agent under the name `mcp_{server}_{tool}` — for example, a server named `my-server` exposing a `some-action` tool becomes `mcp_my-server_some-action`.
+
+See [CONFIG.md](CONFIG.md#mcpservers) for the full mcpServers configuration reference.
 
 ## Setting Up Telegram (BotFather Guide)
 

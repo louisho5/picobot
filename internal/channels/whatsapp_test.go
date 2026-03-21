@@ -90,7 +90,7 @@ func makeWhatsAppMsg(senderUser string, isFromMe, isGroup bool, text string) *ev
 	}
 }
 
-// --- StartWhatsApp / SetupWhatsApp guard tests ---
+/*** StartWhatsApp / SetupWhatsApp guard tests ***/
 
 func TestStartWhatsApp_EmptyDBPath(t *testing.T) {
 	err := StartWhatsApp(context.Background(), chat.NewHub(10), "", nil)
@@ -106,7 +106,7 @@ func TestSetupWhatsApp_EmptyDBPath(t *testing.T) {
 	}
 }
 
-// --- handleMessage tests ---
+/*** handleMessage tests ***/
 
 func TestWhatsAppClient_HandleMessage_Inbound(t *testing.T) {
 	hub := chat.NewHub(10)
@@ -308,7 +308,7 @@ func TestWhatsAppClient_HandleMessage_AllowList_OpenAccess(t *testing.T) {
 	}
 }
 
-// --- Outbound tests ---
+/*** Outbound tests ***/
 
 func TestWhatsAppClient_Outbound(t *testing.T) {
 	hub := chat.NewHub(10)
@@ -388,7 +388,7 @@ func TestWhatsAppClient_Outbound_LongMessageSplit(t *testing.T) {
 	}
 }
 
-// --- extractMessageText tests ---
+/*** extractMessageText tests ***/
 
 func TestExtractMessageText(t *testing.T) {
 	hello := "Hello"
@@ -424,7 +424,7 @@ func TestExtractMessageText(t *testing.T) {
 	}
 }
 
-// --- handleEvent tests ---
+/*** handleEvent tests ***/
 
 func TestWhatsAppClient_HandleEvent_SendsPresence(t *testing.T) {
 	hub := chat.NewHub(10)
@@ -448,7 +448,7 @@ func TestWhatsAppClient_HandleEvent_SendsPresence(t *testing.T) {
 	}
 }
 
-// --- typing indicator tests ---
+/*** typing indicator tests ***/
 
 func TestWhatsAppClient_StopTyping_NoPanic(t *testing.T) {
 	hub := chat.NewHub(10)

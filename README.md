@@ -99,7 +99,7 @@ Notes: Channel refers to communication channels (e.g., Telegram, Discord, Slack,
 
 ## Features
 
-### 16 Built-in Tools
+### 16 Built-in Tools + MCP Extensions
 
 The agent can take real actions — not just chat:
 
@@ -108,7 +108,7 @@ The agent can take real actions — not just chat:
 | `filesystem` | Read, write, list files |
 | `exec` | Run shell commands |
 | `web` | Fetch web pages and APIs |
-| `web_search` | Search the web via DuckDuckGo (no API key needed) |
+| `web_search` | Search the web via DuckDuckGo |
 | `message` | Send messages to channels |
 | `spawn` | Launch background subagents |
 | `cron` | Schedule recurring tasks |
@@ -121,6 +121,8 @@ The agent can take real actions — not just chat:
 | `list_skills` | List available skills |
 | `read_skill` | Read a skill's content |
 | `delete_skill` | Remove a skill |
+
+**MCP Servers:** extend the agent with any [MCP-compliant](https://modelcontextprotocol.io) server — `npx`, `uvx`, a plain binary, `docker run`, or an HTTP endpoint. Tools are registered automatically as `mcp_{server}_{tool}` at startup. See [CONFIG.md](docs/CONFIG.md#mcpservers).
 
 ### Persistent Memory
 
@@ -288,16 +290,18 @@ docker/               Dockerfile, compose, entrypoint
 
 ## Roadmap
 
-- [x] Add Telegram support
-- [x] Add Discord support
-- [x] Add Slack support
-- [x] Add WhatsApp support
-- [x] AI agent with skill creation capability
-- [ ] Integrate with MCP Servers
-- [ ] Integrate additional useful default skills
-- [ ] Add more tools (email, file processing, etc.)
+| Task                                   | Status       |
+|----------------------------------------|--------------|
+| Add Telegram support                   | ✔️ Completed |
+| Add Discord support                    | ✔️ Completed |
+| Add Slack support                      | ✔️ Completed |
+| Add WhatsApp support                   | ✔️ Completed |
+| AI agent with skill creation capability | ✔️ Completed |
+| Integrate with MCP Servers             | ✔️ Completed |
+| Integrate useful default skills        | 🔄 In Progress|
+| Add more tools (file processing, etc.) | 🔄 In Progress|
 
-Want to contribute? Open an issue or PR with your ideas!
+Want to contribute? **Open an issue** or **PR** with your ideas!
 
 ## Docs
 

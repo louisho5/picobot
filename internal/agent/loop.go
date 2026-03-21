@@ -13,7 +13,9 @@ import (
 	"github.com/local/picobot/internal/agent/memory"
 	"github.com/local/picobot/internal/agent/tools"
 	"github.com/local/picobot/internal/chat"
+	"github.com/local/picobot/internal/config"
 	"github.com/local/picobot/internal/cron"
+	"github.com/local/picobot/internal/mcp"
 	"github.com/local/picobot/internal/providers"
 	"github.com/local/picobot/internal/session"
 )
@@ -61,10 +63,11 @@ type AgentLoop struct {
 	model         string
 	maxIterations int
 	running       bool
+	mcpClients    []*mcp.Client
 }
 
 // NewAgentLoop creates a new AgentLoop with the given provider.
-func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, maxIterations int, workspace string, scheduler *cron.Scheduler) *AgentLoop {
+func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, maxIterations int, workspace string, scheduler *cron.Scheduler, mcpServers map[string]config.MCPServerConfig) *AgentLoop {
 	if model == "" {
 		model = provider.GetDefaultModel()
 	}
@@ -112,7 +115,39 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 	reg.Register(tools.NewReadSkillTool(skillMgr))
 	reg.Register(tools.NewDeleteSkillTool(skillMgr))
 
-	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations}
+	// Connect to configured MCP servers and register their tools.
+	var mcpClients []*mcp.Client
+	for name, cfg := range mcpServers {
+		var client *mcp.Client
+		var err error
+		switch {
+		case cfg.Command != "":
+			client, err = mcp.NewStdioClient(name, cfg.Command, cfg.Args)
+		case cfg.URL != "":
+			client, err = mcp.NewHTTPClient(name, cfg.URL, cfg.Headers)
+		default:
+			log.Printf("MCP server %q: no command or url configured, skipping", name)
+			continue
+		}
+		if err != nil {
+			log.Printf("MCP server %q: failed to connect: %v", name, err)
+			continue
+		}
+		mcpClients = append(mcpClients, client)
+		for _, tool := range client.Tools() {
+			reg.Register(tools.NewMCPTool(client, name, tool))
+		}
+		log.Printf("MCP server %q: registered %d tools", name, len(client.Tools()))
+	}
+
+	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations, mcpClients: mcpClients}
+}
+
+// Close shuts down all MCP server connections.
+func (a *AgentLoop) Close() {
+	for _, c := range a.mcpClients {
+		_ = c.Close()
+	}
 }
 
 // Run starts processing inbound messages. This is a blocking call until context is canceled.
