@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestOpenRouterFunctionCallParsing(t *testing.T) {
+func TestOpenAIFunctionCallParsing(t *testing.T) {
 	// Build a fake server that returns a tool_calls style response
 	h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -36,7 +36,7 @@ func TestOpenRouterFunctionCallParsing(t *testing.T) {
 	}))
 	defer h.Close()
 
-	p := NewOpenRouterProvider("test-key", h.URL)
+	p := NewOpenAIProvider("test-key", h.URL, 60, 0)
 	p.Client = &http.Client{Timeout: 5 * time.Second}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

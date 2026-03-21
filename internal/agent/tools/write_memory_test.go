@@ -45,3 +45,28 @@ func TestWriteMemoryTool_TodayAndLong(t *testing.T) {
 		t.Fatalf("expected LT1 to be gone after overwrite, got %q", lt2)
 	}
 }
+
+func TestWriteMemoryTool_RejectsHeartbeatContent(t *testing.T) {
+	tmp := t.TempDir()
+	mem := memory.NewMemoryStoreWithWorkspace(tmp, 10)
+	w := NewWriteMemoryTool(mem)
+
+	cases := []string{
+		"HEARTBEAT CHECK: system status: HEALTHY",
+		"Reviewed HEARTBEAT.md. No pending tasks. System status: HEALTHY. No actions required.",
+		"heartbeat check complete",
+		"[2026-03-07T00:12:36Z] HEARTBEAT CHECK at 2026-03-06: no pending tasks",
+	}
+	for _, c := range cases {
+		_, err := w.Execute(context.Background(), map[string]interface{}{"target": "today", "content": c})
+		if err == nil {
+			t.Fatalf("expected heartbeat content to be rejected, but it was accepted: %q", c)
+		}
+	}
+
+	// Confirm that legitimate content is still accepted.
+	_, err := w.Execute(context.Background(), map[string]interface{}{"target": "today", "content": "user prefers dark mode"})
+	if err != nil {
+		t.Fatalf("expected legitimate content to be accepted, got: %v", err)
+	}
+}

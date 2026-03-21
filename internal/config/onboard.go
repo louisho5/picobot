@@ -20,10 +20,17 @@ func DefaultConfig() Config {
 			Temperature:        0.7,
 			MaxToolIterations:  100,
 			HeartbeatIntervalS: 60,
+			RequestTimeoutS:    60,
 		}},
-		Channels: ChannelsConfig{Telegram: TelegramConfig{Enabled: false, Token: "", AllowFrom: []string{}}},
+		Channels: ChannelsConfig{
+			Telegram: TelegramConfig{Enabled: false, Token: "", AllowFrom: []string{}},
+			Discord:  DiscordConfig{Enabled: false, Token: "", AllowFrom: []string{}},
+			Slack:    SlackConfig{Enabled: false, AppToken: "", BotToken: "", AllowUsers: []string{}, AllowChannels: []string{}},
+			WhatsApp: WhatsAppConfig{Enabled: false, DBPath: "", AllowFrom: []string{}},
+		},
+		MCPServers: map[string]MCPServerConfig{},
 		Providers: ProvidersConfig{
-			OpenRouter: &ProviderConfig{APIKey: "sk-or-v1-REPLACE_ME", APIBase: "https://openrouter.ai/api/v1"},
+			OpenAI: &ProviderConfig{APIKey: "sk-or-v1-REPLACE_ME", APIBase: "https://openrouter.ai/api/v1"},
 		},
 	}
 }
@@ -79,6 +86,10 @@ You are a helpful AI assistant. Be concise, accurate, and friendly.
 - Ask for clarification when the request is ambiguous
 - Use tools to help accomplish tasks
 - Remember important information using the write_memory tool
+- Use read_memory to check existing memory before writing, to avoid duplicates
+- Use edit_memory to update or correct specific facts already stored
+- Use list_memory to see all available memory files
+- Use delete_memory to clean up outdated daily notes
 
 ## File Creation
 
@@ -104,7 +115,13 @@ Never create files directly in the workspace root. Always use a project folder.
 
 - Use the write_memory tool with target "today" for daily notes
 - Use the write_memory tool with target "long" for long-term information
+- Use read_memory to check what is already stored before writing new entries
+- Use edit_memory to update or correct individual facts without rewriting the whole file
+- Use list_memory to see all available memory files
+- Use delete_memory to clean up outdated daily notes
 - Do NOT just say you'll remember something — actually call write_memory
+- NEVER write heartbeat results, health checks, or periodic status logs to memory — these are ephemeral and must be discarded after each run
+- Memory is for durable user knowledge only: facts, preferences, project notes, decisions
 
 ## Skills
 
@@ -192,6 +209,12 @@ Fetch and extract content from a URL.
 - url: the URL to fetch
 - Useful for checking websites, APIs, documentation
 
+### web_search
+Search the web using DuckDuckGo (no API key required).
+- query: the search terms
+- Returns an instant answer, abstract summary, and/or related result links
+- Use this to find relevant URLs, then use the web tool to fetch the full page if needed
+
 ## Messaging
 
 ### message
@@ -201,10 +224,28 @@ Send a message to the current channel/chat.
 ## Memory
 
 ### write_memory
-Persist information to memory files.
+Persist information to memory files. Never store redundant information like heartbeat logs.
 - target: "today" (daily notes) or "long" (long-term memory)
 - content: what to remember
 - append: true to add, false to replace
+
+### list_memory
+List all memory files (daily notes and long-term MEMORY.md).
+- No arguments needed
+
+### read_memory
+Read the contents of a specific memory file.
+- target: "today", "long", or a date "YYYY-MM-DD"
+
+### edit_memory
+Find and replace text within a memory file.
+- target: "today", "long", or "YYYY-MM-DD"
+- old_text: exact text to find
+- new_text: replacement text (omit or empty string to delete the matched text)
+
+### delete_memory
+Delete a daily memory file. Cannot delete long-term memory (MEMORY.md).
+- target: date in "YYYY-MM-DD" format
 
 ## Skill Management
 
@@ -237,6 +278,13 @@ Schedule or manage cron jobs.
 		"HEARTBEAT.md": `# Heartbeat
 
 This file is checked periodically (every 60 seconds). Add tasks here that should run on a schedule.
+
+## IMPORTANT RULES FOR HEARTBEAT PROCESSING
+
+- After reviewing this file, take actions ONLY if there are explicit tasks listed below
+- If there are no tasks (or all tasks are complete), do NOTHING — do not send any message, do not call write_memory or any memory tool
+- NEVER log "heartbeat check complete", "system status: healthy", or any status message to memory files — these clutter memory with useless noise
+- Heartbeat results are ephemeral: process, act if needed, then stop silently
 
 ## Periodic Tasks
 

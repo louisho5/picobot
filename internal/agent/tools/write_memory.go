@@ -3,9 +3,34 @@ package tools
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/local/picobot/internal/agent/memory"
 )
+
+// heartbeatPhrases contains lowercase substrings that identify heartbeat-status
+// log entries. Any write_memory or edit_memory call whose content matches one
+// of these is rejected — the heartbeat loop must never pollute memory files.
+var heartbeatPhrases = []string{
+	"heartbeat check",
+	"heartbeat.md",
+	"heartbeat log",
+	"system status: healthy",
+	"no pending tasks",
+	"no actions required",
+	"periodic tasks",
+}
+
+// isHeartbeatContent returns true if content looks like a heartbeat status log.
+func isHeartbeatContent(content string) bool {
+	l := strings.ToLower(content)
+	for _, phrase := range heartbeatPhrases {
+		if strings.Contains(l, phrase) {
+			return true
+		}
+	}
+	return false
+}
 
 // WriteMemoryTool writes to the agent's memory (today's note or long-term MEMORY.md)
 type WriteMemoryTool struct {
@@ -18,7 +43,7 @@ func NewWriteMemoryTool(mem *memory.MemoryStore) *WriteMemoryTool {
 
 func (w *WriteMemoryTool) Name() string { return "write_memory" }
 func (w *WriteMemoryTool) Description() string {
-	return "Write or append to memory (today's note or long-term MEMORY.md)"
+	return "Write or append to memory (today's note or long-term MEMORY.md). NEVER store heartbeat status, health checks, or 'no pending tasks' results."
 }
 
 func (w *WriteMemoryTool) Parameters() map[string]interface{} {
@@ -63,6 +88,9 @@ func (w *WriteMemoryTool) Execute(ctx context.Context, args map[string]interface
 	if !ok {
 		return "", fmt.Errorf("write_memory: 'content' must be a string")
 	}
+	if isHeartbeatContent(content) {
+		return "", fmt.Errorf("write_memory: heartbeat status logs must not be stored in memory — skip this write")
+	}
 	appendFlag := true
 	if a, ok := args["append"]; ok {
 		if b, ok := a.(bool); ok {
@@ -96,3 +124,4 @@ func (w *WriteMemoryTool) Execute(ctx context.Context, args map[string]interface
 		return "", fmt.Errorf("write_memory: unknown target '%s'", target)
 	}
 }
+

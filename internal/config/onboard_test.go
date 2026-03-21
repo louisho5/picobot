@@ -60,14 +60,66 @@ func TestSaveAndLoadConfig(t *testing.T) {
 	if parsed.Agents.Defaults.Workspace != d {
 		t.Fatalf("workspace mismatch: got %s want %s", parsed.Agents.Defaults.Workspace, d)
 	}
-	// verify provider defaults: OpenRouter present, Ollama empty
-	if parsed.Providers.OpenRouter == nil || parsed.Providers.OpenRouter.APIKey != "sk-or-v1-REPLACE_ME" {
-		t.Fatalf("expected default OpenRouter API key placeholder, got %v", parsed.Providers.OpenRouter)
+	// verify provider defaults: OpenAI present with placeholder
+	if parsed.Providers.OpenAI == nil || parsed.Providers.OpenAI.APIKey != "sk-or-v1-REPLACE_ME" {
+		t.Fatalf("expected default OpenAI API key placeholder, got %v", parsed.Providers.OpenAI)
 	}
-	if parsed.Providers.OpenRouter.APIBase != "https://openrouter.ai/api/v1" {
-		t.Fatalf("expected default OpenRouter API base, got %q", parsed.Providers.OpenRouter.APIBase)
+	if parsed.Providers.OpenAI.APIBase != "https://openrouter.ai/api/v1" {
+		t.Fatalf("expected default OpenAI API base, got %q", parsed.Providers.OpenAI.APIBase)
 	}
-	if parsed.Providers.Ollama != nil {
-		t.Fatalf("expected Ollama to be absent by default, got %v", parsed.Providers.Ollama)
+}
+
+func TestDefaultConfig_IncludesWhatsApp(t *testing.T) {
+	cfg := DefaultConfig()
+
+	// WhatsApp must be present and disabled by default.
+	if cfg.Channels.WhatsApp.Enabled {
+		t.Error("WhatsApp should be disabled in the default config")
+	}
+
+	// Telegram, Discord, and Slack should also be present and disabled.
+	if cfg.Channels.Telegram.Enabled {
+		t.Error("Telegram should be disabled in the default config")
+	}
+	if cfg.Channels.Discord.Enabled {
+		t.Error("Discord should be disabled in the default config")
+	}
+	if cfg.Channels.Slack.Enabled {
+		t.Error("Slack should be disabled in the default config")
+	}
+}
+
+func TestDefaultConfig_WhatsAppRoundTrips(t *testing.T) {
+	d := t.TempDir()
+	cfg := DefaultConfig()
+	cfg.Channels.WhatsApp = WhatsAppConfig{
+		Enabled:   true,
+		DBPath:    "~/.picobot/whatsapp.db",
+		AllowFrom: []string{"15551234567"},
+	}
+
+	path := filepath.Join(d, "config.json")
+	if err := SaveConfig(cfg, path); err != nil {
+		t.Fatalf("SaveConfig failed: %v", err)
+	}
+
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading saved config failed: %v", err)
+	}
+	var parsed Config
+	if err := json.Unmarshal(b, &parsed); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+
+	wa := parsed.Channels.WhatsApp
+	if !wa.Enabled {
+		t.Error("WhatsApp should be enabled after round-trip")
+	}
+	if wa.DBPath != "~/.picobot/whatsapp.db" {
+		t.Errorf("DBPath = %q, want ~/.picobot/whatsapp.db", wa.DBPath)
+	}
+	if len(wa.AllowFrom) != 1 || wa.AllowFrom[0] != "15551234567" {
+		t.Errorf("AllowFrom = %v, want [15551234567]", wa.AllowFrom)
 	}
 }

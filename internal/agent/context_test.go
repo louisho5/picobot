@@ -14,9 +14,9 @@ func TestBuildMessagesIncludesMemories(t *testing.T) {
 	memCtx := "Long-term memory: important fact"
 	msgs := cb.BuildMessages(history, "hello", "telegram", "123", memCtx, mems)
 
-	// Expect at least system prompt + some system messages + user history + current
-	if len(msgs) < 4 {
-		t.Fatalf("expected at least 4 messages, got %d", len(msgs))
+	// Expect at least 1 system message + 1 user history + 1 current user message
+	if len(msgs) < 3 {
+		t.Fatalf("expected at least 3 messages, got %d", len(msgs))
 	}
 	if msgs[0].Role != "system" {
 		t.Fatalf("expected first message to be system prompt, got %s", msgs[0].Role)

@@ -6,23 +6,13 @@ import (
 	"github.com/local/picobot/internal/config"
 )
 
-func TestNewProviderFromConfig_PicksOllama(t *testing.T) {
+func TestNewProviderFromConfig_PicksOpenAI(t *testing.T) {
 	cfg := config.Config{}
-	cfg.Providers.Ollama = &config.ProviderConfig{APIBase: "http://localhost:11434/v1"}
+	cfg.Providers.OpenAI = &config.ProviderConfig{APIKey: "test"}
 	p := NewProviderFromConfig(cfg)
-	_, ok := p.(*OllamaProvider)
+	_, ok := p.(*OpenAIProvider)
 	if !ok {
-		t.Fatalf("expected OllamaProvider, got %T", p)
-	}
-}
-
-func TestNewProviderFromConfig_PicksOpenRouter(t *testing.T) {
-	cfg := config.Config{}
-	cfg.Providers.OpenRouter = &config.ProviderConfig{APIKey: "test"}
-	p := NewProviderFromConfig(cfg)
-	_, ok := p.(*OpenRouterProvider)
-	if !ok {
-		t.Fatalf("expected OpenRouterProvider, got %T", p)
+		t.Fatalf("expected OpenAIProvider, got %T", p)
 	}
 }
 

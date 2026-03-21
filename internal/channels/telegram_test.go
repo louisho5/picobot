@@ -32,7 +32,10 @@ func TestStartTelegramWithBase(t *testing.T) {
 			return
 		}
 		if strings.HasSuffix(path, "/sendMessage") {
-			r.ParseForm()
+			if err := r.ParseForm(); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			sent <- r.PostForm
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"ok":true,"result":{}}`))
@@ -50,6 +53,9 @@ func TestStartTelegramWithBase(t *testing.T) {
 	if err := StartTelegramWithBase(ctx, b, token, base, nil); err != nil {
 		t.Fatalf("StartTelegramWithBase failed: %v", err)
 	}
+	// Start the hub router so outbound messages sent to b.Out are dispatched
+	// to each channel's subscription (telegram in this test).
+	b.StartRouter(ctx)
 
 	// Wait for inbound from getUpdates
 	select {

@@ -30,12 +30,14 @@ func NewContextBuilder(workspace string, r memory.Ranker, topK int) *ContextBuil
 }
 
 func (cb *ContextBuilder) BuildMessages(history []string, currentMessage string, channel, chatID string, memoryContext string, memories []memory.MemoryItem) []providers.Message {
-	msgs := make([]providers.Message, 0, len(history)+8)
-	// system prompt
-	msgs = append(msgs, providers.Message{Role: "system", Content: "You are Picobot, a helpful assistant."})
+	msgs := make([]providers.Message, 0, len(history)+2)
 
-	// Load workspace bootstrap files (SOUL.md, AGENTS.md, USER.md, TOOLS.md)
-	// These define the agent's personality, instructions, and available tools documentation.
+	// Combine all system instructions into one message at position 0 to avoid errors in strict chat templates (e.g. llama.cpp)
+	var sysParts []string
+
+	sysParts = append(sysParts, "You are Picobot, a helpful assistant.")
+
+	// Load workspace bootstrap files
 	bootstrapFiles := []string{"SOUL.md", "AGENTS.md", "USER.md", "TOOLS.md"}
 	for _, name := range bootstrapFiles {
 		p := filepath.Join(cb.workspace, name)
@@ -45,14 +47,19 @@ func (cb *ContextBuilder) BuildMessages(history []string, currentMessage string,
 		}
 		content := strings.TrimSpace(string(data))
 		if content != "" {
-			msgs = append(msgs, providers.Message{Role: "system", Content: fmt.Sprintf("## %s\n\n%s", name, content)})
+			sysParts = append(sysParts, fmt.Sprintf("## %s\n\n%s", name, content))
 		}
 	}
 
-	// instruction for memory tool usage
-	msgs = append(msgs, providers.Message{Role: "system", Content: "If you decide something should be remembered, call the tool 'write_memory' with JSON arguments: {\"target\": \"today\"|\"long\", \"content\": \"...\", \"append\": true|false}. Use a tool call rather than plain chat text when writing memory."})
+	// Channel context and tool availability
+	sysParts = append(sysParts, fmt.Sprintf(
+		"You are operating on channel=%q chatID=%q. You have full access to all registered tools regardless of the channel. Always use your tools when the user asks you to perform actions (file operations, shell commands, web fetches, etc.).",
+		channel, chatID))
 
-	// Load and include skills context
+	// Memory tool instruction
+	sysParts = append(sysParts, "If you decide something should be remembered, call the tool 'write_memory' with JSON arguments: {\"target\": \"today\"|\"long\", \"content\": \"...\", \"append\": true|false}. Use a tool call rather than plain chat text when writing memory.")
+
+	// Skills context
 	loadedSkills, err := cb.skillsLoader.LoadAll()
 	if err != nil {
 		log.Printf("error loading skills: %v", err)
@@ -61,17 +68,17 @@ func (cb *ContextBuilder) BuildMessages(history []string, currentMessage string,
 		var sb strings.Builder
 		sb.WriteString("Available Skills:\n")
 		for _, skill := range loadedSkills {
-			sb.WriteString(fmt.Sprintf("\n## %s\n%s\n\n%s\n", skill.Name, skill.Description, skill.Content))
+			fmt.Fprintf(&sb, "\n## %s\n%s\n\n%s\n", skill.Name, skill.Description, skill.Content)
 		}
-		msgs = append(msgs, providers.Message{Role: "system", Content: sb.String()})
+		sysParts = append(sysParts, sb.String())
 	}
 
-	// include file-based memory context (long-term + today's notes) if present
+	// File-based memory context (long-term + today's notes)
 	if memoryContext != "" {
-		msgs = append(msgs, providers.Message{Role: "system", Content: "Memory:\n" + memoryContext})
+		sysParts = append(sysParts, "Memory:\n"+memoryContext)
 	}
 
-	// select top-K memories using ranker if available
+	// Top-K ranked memories
 	selected := memories
 	if cb.ranker != nil && len(memories) > 0 {
 		selected = cb.ranker.Rank(currentMessage, memories, cb.topK)
@@ -80,20 +87,33 @@ func (cb *ContextBuilder) BuildMessages(history []string, currentMessage string,
 		var sb strings.Builder
 		sb.WriteString("Relevant memories:\n")
 		for _, m := range selected {
-			sb.WriteString(fmt.Sprintf("- %s (%s)\n", m.Text, m.Kind))
+			fmt.Fprintf(&sb, "- %s (%s)\n", m.Text, m.Kind)
 		}
-		msgs = append(msgs, providers.Message{Role: "system", Content: sb.String()})
+		sysParts = append(sysParts, sb.String())
 	}
 
-	// replay history
+	// Emit the single consolidated system message
+	msgs = append(msgs, providers.Message{Role: "system", Content: strings.Join(sysParts, "\n\n")})
+
+	// Replay history, preserving each message's original role (user/assistant).
+	// Items are stored in "role: content" format by session.AddMessage.
 	for _, h := range history {
-		// history items are of the form "role: content"
-		if len(h) > 0 {
-			msgs = append(msgs, providers.Message{Role: "user", Content: h})
+		if len(h) == 0 {
+			continue
 		}
+		role := "user"
+		content := h
+		if idx := strings.Index(h, ": "); idx > 0 {
+			r := h[:idx]
+			if r == "user" || r == "assistant" {
+				role = r
+				content = h[idx+2:]
+			}
+		}
+		msgs = append(msgs, providers.Message{Role: role, Content: content})
 	}
 
-	// current
+	// Current user message
 	msgs = append(msgs, providers.Message{Role: "user", Content: currentMessage})
 	return msgs
 }

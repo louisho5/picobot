@@ -13,7 +13,11 @@ func openTestRoot(t *testing.T) *os.Root {
 	if err != nil {
 		t.Fatalf("OpenRoot failed: %v", err)
 	}
-	t.Cleanup(func() { root.Close() })
+	t.Cleanup(func() {
+		if err := root.Close(); err != nil {
+			t.Logf("root.Close: %v", err)
+		}
+	})
 	return root
 }
 
@@ -46,8 +50,12 @@ func TestSkillManager_ListSkills(t *testing.T) {
 	mgr := NewSkillManager(root)
 
 	// Create test skills
-	mgr.CreateSkill("skill1", "Description 1", "Content 1")
-	mgr.CreateSkill("skill2", "Description 2", "Content 2")
+	if err := mgr.CreateSkill("skill1", "Description 1", "Content 1"); err != nil {
+		t.Fatalf("CreateSkill skill1 failed: %v", err)
+	}
+	if err := mgr.CreateSkill("skill2", "Description 2", "Content 2"); err != nil {
+		t.Fatalf("CreateSkill skill2 failed: %v", err)
+	}
 
 	skills, err := mgr.ListSkills()
 	if err != nil {
@@ -63,7 +71,9 @@ func TestSkillManager_GetSkill(t *testing.T) {
 	root := openTestRoot(t)
 	mgr := NewSkillManager(root)
 
-	mgr.CreateSkill("test-skill", "Test description", "# Test\n\nTest content")
+	if err := mgr.CreateSkill("test-skill", "Test description", "# Test\n\nTest content"); err != nil {
+		t.Fatalf("CreateSkill failed: %v", err)
+	}
 
 	content, err := mgr.GetSkill("test-skill")
 	if err != nil {
@@ -79,7 +89,9 @@ func TestSkillManager_DeleteSkill(t *testing.T) {
 	root := openTestRoot(t)
 	mgr := NewSkillManager(root)
 
-	mgr.CreateSkill("test-skill", "Test description", "Content")
+	if err := mgr.CreateSkill("test-skill", "Test description", "Content"); err != nil {
+		t.Fatalf("CreateSkill failed: %v", err)
+	}
 
 	err := mgr.DeleteSkill("test-skill")
 	if err != nil {
@@ -123,8 +135,12 @@ func TestCreateSkillTool_Execute(t *testing.T) {
 func TestListSkillsTool_Execute(t *testing.T) {
 	root := openTestRoot(t)
 	mgr := NewSkillManager(root)
-	mgr.CreateSkill("skill1", "Description 1", "Content 1")
-	mgr.CreateSkill("skill2", "Description 2", "Content 2")
+	if err := mgr.CreateSkill("skill1", "Description 1", "Content 1"); err != nil {
+		t.Fatalf("CreateSkill skill1 failed: %v", err)
+	}
+	if err := mgr.CreateSkill("skill2", "Description 2", "Content 2"); err != nil {
+		t.Fatalf("CreateSkill skill2 failed: %v", err)
+	}
 
 	tool := NewListSkillsTool(mgr)
 	result, err := tool.Execute(context.Background(), map[string]interface{}{})
@@ -140,7 +156,9 @@ func TestListSkillsTool_Execute(t *testing.T) {
 func TestReadSkillTool_Execute(t *testing.T) {
 	root := openTestRoot(t)
 	mgr := NewSkillManager(root)
-	mgr.CreateSkill("test-skill", "Test description", "# Test Content")
+	if err := mgr.CreateSkill("test-skill", "Test description", "# Test Content"); err != nil {
+		t.Fatalf("CreateSkill failed: %v", err)
+	}
 
 	tool := NewReadSkillTool(mgr)
 	args := map[string]interface{}{"name": "test-skill"}
@@ -157,7 +175,9 @@ func TestReadSkillTool_Execute(t *testing.T) {
 func TestDeleteSkillTool_Execute(t *testing.T) {
 	root := openTestRoot(t)
 	mgr := NewSkillManager(root)
-	mgr.CreateSkill("test-skill", "Test description", "Content")
+	if err := mgr.CreateSkill("test-skill", "Test description", "Content"); err != nil {
+		t.Fatalf("CreateSkill failed: %v", err)
+	}
 
 	tool := NewDeleteSkillTool(mgr)
 	args := map[string]interface{}{"name": "test-skill"}

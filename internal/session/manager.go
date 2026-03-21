@@ -47,7 +47,9 @@ func (sm *SessionManager) Save(s *Session) error {
 	// Trim history to the most recent messages
 	s.trim()
 	path := filepath.Join(sm.workspace, "sessions")
-	os.MkdirAll(path, 0755)
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return err
+	}
 	fpath := filepath.Join(path, s.Key+".json")
 	b, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {

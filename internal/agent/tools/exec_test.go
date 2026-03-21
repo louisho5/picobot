@@ -37,7 +37,9 @@ func TestExecDangerousProgRejected(t *testing.T) {
 func TestExecWithWorkspace(t *testing.T) {
 	d := t.TempDir()
 	f := filepath.Join(d, "file.txt")
-	os.WriteFile(f, []byte("content"), 0644)
+	if err := os.WriteFile(f, []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
 	e := NewExecToolWithWorkspace(2, d)
 	out, err := e.Execute(context.Background(), map[string]interface{}{"cmd": []interface{}{"cat", "file.txt"}})
 	if err != nil {

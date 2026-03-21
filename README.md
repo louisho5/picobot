@@ -1,20 +1,20 @@
-BCDE
 <p align="center">
-  <img src="logo.png" alt="Picobot" width="250" height="150">
+  <img src="docs/logo.png" alt="Picobot" width="250" height="150">
   <h1 align="center">Picobot</h1>
   <p align="center"><strong>The AI agent that runs anywhere — even on a $5 VPS.</strong></p>
   <p align="center">
-    <img src="https://img.shields.io/badge/binary-~11MB-brightgreen" alt="Binary Size">
-    <img src="https://img.shields.io/badge/docker-~33MB-blue" alt="Docker Size">
+    <img src="https://img.shields.io/badge/binary-~9MB-brightgreen" alt="Binary Size">
+    <img src="https://img.shields.io/badge/RAM-~10MB-orange" alt="Memory Usage">
     <img src="https://img.shields.io/badge/built_with-Go-00ADD8?logo=go" alt="Go">
-    <img src="https://img.shields.io/badge/RAM-~20MB-orange" alt="Memory Usage">
     <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License">
+    <img src="https://img.shields.io/docker/pulls/louisho5/picobot?logo=docker" alt="Docker Pulls">
+    <img src="https://github.com/louisho5/picobot/actions/workflows/docker-publish.yml/badge.svg" alt="Workflow">
   </p>
 </p>
 
 ---
 
-Love the idea of open-source AI agents like [OpenClaw](https://github.com/openclaw/openclaw) but tired of the bloat? **Picobot** gives you the same power — persistent memory, tool calling, skills, Telegram integration — in a single ~12MB binary that boots in milliseconds.
+Love the idea of open-source AI agents like [OpenClaw](https://github.com/openclaw/openclaw) but tired of the bloat? **Picobot** gives you the same power — persistent memory, tool calling, skills, Telegram and Discord integration — in a single ~9MB binary that boots in milliseconds.
 
 No Python. No Node. No 500MB container. Just one Go binary and a config file.
 
@@ -22,12 +22,11 @@ No Python. No Node. No 500MB container. Just one Go binary and a config file.
 
 | | Picobot | Typical Agent Frameworks |
 |---|---|---|
-| **Binary size** | ~12MB | 200MB+ (Python + deps) |
-| **Docker image** | ~33MB (Alpine) | 500MB–1GB+ |
+| **Binary size** | ~9MB | 200MB+ (Python + deps) |
+| **Docker image** | ~29MB (Alpine) | 500MB–1GB+ |
 | **Cold start** | Instant | 5–30 seconds |
-| **RAM usage** | ~20MB idle | 200MB–1GB |
+| **RAM usage** | ~10MB idle | 200MB–1GB |
 | **Dependencies** | Zero (single binary) | Python, pip, venv, Node… |
-| **Minimum hardware** | 1 CPU / 256MB RAM | 2+ CPU / 1GB+ RAM |
 
 Picobot runs happily on a **$5/mo VPS**, a Raspberry Pi, or even an old Android phone via Termux.
 
@@ -37,8 +36,11 @@ Picobot runs happily on a **$5/mo VPS**, a Raspberry Pi, or even an old Android 
 
 ```sh
 docker run -d --name picobot \
-  -e OPENROUTER_API_KEY="your-key" \
-  -e PICOBOT_MODEL="google/gemini-2.5-flash" \
+  -e OPENAI_API_KEY="your-key" \
+  -e OPENAI_API_BASE="https://openrouter.ai/api/v1" \
+  -e PICOBOT_MODEL="openrouter/free" \
+  -e PICOBOT_MAX_TOKENS=8192 \
+  -e PICOBOT_MAX_TOOL_ITERATIONS=100 \
   -e TELEGRAM_BOT_TOKEN="your-telegram-token" \
   -v ./picobot-data:/home/picobot/.picobot \
   --restart unless-stopped \
@@ -58,8 +60,11 @@ services:
     container_name: picobot
     restart: unless-stopped
     environment:
-      - OPENROUTER_API_KEY=your-key
-      - PICOBOT_MODEL=google/gemini-2.5-flash
+      - OPENAI_API_KEY=your-key
+      - OPENAI_API_BASE=https://openrouter.ai/api/v1
+      - PICOBOT_MODEL=openrouter/free
+      - PICOBOT_MAX_TOKENS=8192
+      - PICOBOT_MAX_TOOL_ITERATIONS=100
       - TELEGRAM_BOT_TOKEN=your-telegram-token
       - TELEGRAM_ALLOW_FROM=your-user-id
     volumes:
@@ -78,22 +83,23 @@ docker compose up -d
 go build -o picobot ./cmd/picobot
 ./picobot onboard                     # creates ~/.picobot config + workspace
 ./picobot agent -m "Hello!"           # single-shot query
+./picobot channels login              # login to channels (Telegram, Discord, Slack, WhatsApp)
 ./picobot gateway                     # long-running mode with Telegram
 ```
 
 ## Architecture
 
-Actually the logic is simple and straightforward. Messages flow through a **Chat Hub** (inbound/outbound channels) into the **Agent Loop**, which builds context from memory/sessions/skills, calls the LLM (OpenRouter or Ollama), and executes tools (filesystem, exec, web, etc.) before sending replies back through the hub.
+Actually the logic is simple and straightforward. Messages flow through a **Chat Hub** (inbound/outbound channels) into the **Agent Loop**, which builds context from memory/sessions/skills, calls the LLM via OpenAI-compatible API, and executes tools (filesystem, exec, web, etc.) before sending replies back through the hub.
 
 <p>
-  <img src="how-it-works.png" alt="How Picobot Works" width="600">
+  <img src="docs/how-it-works.png" alt="How Picobot Works" width="600">
 </p>
 
-Notes: Channel refers to communication channels (e.g., Telegram, WhatsApp, etc.).
+Notes: Channel refers to communication channels (e.g., Telegram, Discord, Slack, WhatsApp, etc.).
 
 ## Features
 
-### 11 Built-in Tools
+### 16 Built-in Tools + MCP Extensions
 
 The agent can take real actions — not just chat:
 
@@ -102,14 +108,21 @@ The agent can take real actions — not just chat:
 | `filesystem` | Read, write, list files |
 | `exec` | Run shell commands |
 | `web` | Fetch web pages and APIs |
+| `web_search` | Search the web via DuckDuckGo |
 | `message` | Send messages to channels |
 | `spawn` | Launch background subagents |
 | `cron` | Schedule recurring tasks |
 | `write_memory` | Persist information across sessions |
+| `list_memory` | List all memory files |
+| `read_memory` | Read a specific memory file |
+| `edit_memory` | Find and replace text in a memory file |
+| `delete_memory` | Delete a daily memory file |
 | `create_skill` | Create reusable skill packages |
 | `list_skills` | List available skills |
 | `read_skill` | Read a skill's content |
 | `delete_skill` | Remove a skill |
+
+**MCP Servers:** extend the agent with any [MCP-compliant](https://modelcontextprotocol.io) server — `npx`, `uvx`, a plain binary, `docker run`, or an HTTP endpoint. Tools are registered automatically as `mcp_{server}_{tool}` at startup. See [CONFIG.md](docs/CONFIG.md#mcpservers).
 
 ### Persistent Memory
 
@@ -143,7 +156,34 @@ Chat with your agent from your phone. Set up in 2 minutes:
 2. Add the token to config or pass as `TELEGRAM_BOT_TOKEN` env var
 3. Start the communication gateway
 
-See [HOW_TO_START.md](HOW_TO_START.md) for a detailed BotFather walkthrough.
+See [HOW_TO_START.md](docs/HOW_TO_START.md) for a detailed BotFather walkthrough.
+
+### Discord Integration
+
+Connect your agent to Discord servers:
+
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Create a new application and bot
+3. Enable **Message Content Intent** in Bot settings
+4. Copy the bot token
+5. Add to config under `channels.discord` in your `config.json`
+
+The bot will respond when mentioned in servers, or to all messages in DMs.
+
+See [HOW_TO_START.md](docs/HOW_TO_START.md) for a detailed Discord Bot walkthrough.
+
+### Slack Integration
+
+Connect your agent to Slack via Socket Mode:
+
+1. Go to [Slack API Apps](https://api.slack.com/apps) and create an app
+2. Enable **Socket Mode** and generate an App-Level Token (`xapp-...`)
+3. Add Bot Token scopes: `app_mentions:read`, `chat:write`, `channels:history`, `groups:history`, `im:history`, `mpim:history`, `files:read`
+4. Enable Event Subscriptions and subscribe to: `app_mention`, `message.im`
+5. Install the app to your workspace and copy the Bot Token (`xoxb-...`)
+6. Add to config under `channels.slack` in your `config.json`
+
+The bot responds when mentioned in channels, and responds to all DMs from allowed users (DMs ignore the channel allowlist).
 
 ### Heartbeat
 
@@ -164,7 +204,7 @@ Picobot uses a single JSON config at `~/.picobot/config.json`:
     }
   },
   "providers": {
-    "openrouter": {
+    "openai": {
       "apiKey": "sk-or-v1-YOUR_KEY",
       "apiBase": "https://openrouter.ai/api/v1"
     }
@@ -172,14 +212,19 @@ Picobot uses a single JSON config at `~/.picobot/config.json`:
   "channels": {
     "telegram": {
       "enabled": true,
-      "token": "YOUR_BOT_TOKEN",
-      "allowFrom": ["YOUR_USER_ID"]
+      "token": "YOUR_TELEGRAM_BOT_TOKEN",
+      "allowFrom": ["YOUR_TELEGRAM_USER_ID"]
+    },
+    "discord": {
+      "enabled": true,
+      "token": "YOUR_DISCORD_BOT_TOKEN",
+      "allowFrom": ["YOUR_DISCORD_USER_ID"]
     }
   }
 }
 ```
 
-Supports **OpenRouter** and **Ollama** . See [CONFIG.md](CONFIG.md) for more details.
+Supports any **OpenAI-compatible API** (OpenAI, OpenRouter, Ollama, etc.). See [CONFIG.md](docs/CONFIG.md) for more details.
 
 ## CLI Reference
 
@@ -188,6 +233,7 @@ picobot version                        # print version
 picobot onboard                        # create config + workspace
 picobot agent -m "..."                 # one-shot query
 picobot agent -M model -m "..."        # query with specific model
+picobot channels login                 # login to channels (Telegram, Discord, Slack, WhatsApp)
 picobot gateway                        # start long-running agent
 picobot memory read today|long         # read memory
 picobot memory append today|long -c "" # append to memory
@@ -214,14 +260,15 @@ Works on any Linux with 256MB RAM. No runtime dependencies. Just copy the binary
 
 | Layer | Technology |
 |-------|------------|
-| Language | [Go](https://go.dev/) 1.25+ |
+| Language | [Go](https://go.dev/) 1.26+ |
 | CLI framework | [Cobra](https://github.com/spf13/cobra) |
-| LLM providers | OpenRouter (cloud), Ollama (local) — via OpenAI-compatible API |
-| Telegram | Raw Bot API (no third-party SDK, standard library `net/http`) |
-| HTTP / JSON | Go standard library only (`net/http`, `encoding/json`) |
+| LLM providers | OpenAI-compatible API (OpenAI, OpenRouter, Ollama, etc.) |
+| Telegram | Raw Bot API |
+| Discord | [discordgo](https://github.com/bwmarrin/discordgo) library |
+| WhatsApp | [whatsmeow](https://github.com/tulir/whatsmeow) and [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) |
 | Container | Alpine Linux 3.20 (multi-stage Docker build) |
 
-Picobot has **one** external dependency (`spf13/cobra` for CLI parsing). Everything else — HTTP clients, JSON handling, Telegram polling, provider integrations — uses the Go standard library.
+Picobot is written **100%** in pure Go, without any CGO dependencies. All required libraries and assets are statically embedded into the final binary. This design ensures zero external runtime dependencies, fast cold start times, and full portability across all platforms supported by Go.
 
 ## Project Structure
 
@@ -231,32 +278,36 @@ embeds/               Embedded assets (sample skills)
 internal/
   agent/              Agent loop, context, tools, skills
   chat/               Chat message hub
-  channels/           Telegram (more coming)
+  channels/           Telegram, Discord, Slack, WhatsApp
   config/             Config schema, loader, onboarding
   cron/               Cron scheduler
   heartbeat/          Periodic task checker
   memory/             Memory read/write/rank
-  providers/          OpenRouter, Ollama, Stub
+  providers/          OpenAI-compatible provider
   session/            Session manager
 docker/               Dockerfile, compose, entrypoint
 ```
 
 ## Roadmap
 
-- [x] Add Telegram support
-- [ ] Add WhatsApp support
-- [ ] Add Discord support
-- [x] AI agent with skill creation capability
-- [ ] Integrate additional useful default skills
-- [ ] Add more tools (email, file processing, etc.)
+| Task                                   | Status       |
+|----------------------------------------|--------------|
+| Add Telegram support                   | ✔️ Completed |
+| Add Discord support                    | ✔️ Completed |
+| Add Slack support                      | ✔️ Completed |
+| Add WhatsApp support                   | ✔️ Completed |
+| AI agent with skill creation capability | ✔️ Completed |
+| Integrate with MCP Servers             | ✔️ Completed |
+| Integrate useful default skills        | 🔄 In Progress|
+| Add more tools (file processing, etc.) | 🔄 In Progress|
 
-Want to contribute? Open an issue or PR with your ideas!
+Want to contribute? **Open an issue** or **PR** with your ideas!
 
 ## Docs
 
-- [HOW_TO_START.md](HOW_TO_START.md) — step-by-step getting started guide
-- [CONFIG.md](CONFIG.md) — full configuration reference
-- [DEVELOPMENT.md](DEVELOPMENT.md) — development, testing, and Docker publishing
+- [HOW_TO_START.md](docs/HOW_TO_START.md) — step-by-step getting started guide
+- [CONFIG.md](docs/CONFIG.md) — full configuration reference
+- [DEVELOPMENT.md](docs/DEVELOPMENT.md) — development, testing, and Docker publishing
 - [docker/README.md](docker/README.md) — Docker deployment guide
 
 ## License

@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -11,12 +13,44 @@ import (
 	"github.com/local/picobot/internal/agent/memory"
 	"github.com/local/picobot/internal/agent/tools"
 	"github.com/local/picobot/internal/chat"
+	"github.com/local/picobot/internal/config"
 	"github.com/local/picobot/internal/cron"
+	"github.com/local/picobot/internal/mcp"
 	"github.com/local/picobot/internal/providers"
 	"github.com/local/picobot/internal/session"
 )
 
 var rememberRE = regexp.MustCompile(`(?i)^remember(?:\s+to)?\s+(.+)$`)
+
+// sendChannelNotification delivers a non-blocking status message back to the
+// originating channel so the user can see tool progress in real time.
+// It is a no-op for system channels (heartbeat, cron) that have no user-facing chat.
+func sendChannelNotification(hub *chat.Hub, channel, chatID, content string) {
+	if isSystemChannel(channel) {
+		return
+	}
+	out := chat.Outbound{Channel: channel, ChatID: chatID, Content: content}
+	select {
+	case hub.Out <- out:
+	default:
+		log.Println("sendChannelNotification: outbound channel full, dropping notification")
+	}
+}
+
+// isSystemChannel reports whether a channel is a background/system trigger
+// (heartbeat, cron) rather than an interactive user-facing channel.
+// Messages from system channels are processed statelessly: no session history
+// is loaded as context and nothing is written back to disk.  This prevents the
+// heartbeat session file from growing unboundedly and keeps each invocation's
+// context window small.
+func isSystemChannel(channel string) bool {
+	switch channel {
+	case "heartbeat", "cron":
+		return true
+	default:
+		return false
+	}
+}
 
 // AgentLoop is the core processing loop; it holds an LLM provider, tools, sessions and context builder.
 type AgentLoop struct {
@@ -29,10 +63,11 @@ type AgentLoop struct {
 	model         string
 	maxIterations int
 	running       bool
+	mcpClients    []*mcp.Client
 }
 
 // NewAgentLoop creates a new AgentLoop with the given provider.
-func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, maxIterations int, workspace string, scheduler *cron.Scheduler) *AgentLoop {
+func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, maxIterations int, workspace string, scheduler *cron.Scheduler, mcpServers map[string]config.MCPServerConfig) *AgentLoop {
 	if model == "" {
 		model = provider.GetDefaultModel()
 	}
@@ -57,6 +92,7 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 
 	reg.Register(tools.NewExecTool(60))
 	reg.Register(tools.NewWebTool())
+	reg.Register(tools.NewWebSearchTool())
 	reg.Register(tools.NewSpawnTool())
 	if scheduler != nil {
 		reg.Register(tools.NewCronTool(scheduler))
@@ -65,8 +101,12 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 	sm := session.NewSessionManager(workspace)
 	ctx := NewContextBuilder(workspace, memory.NewLLMRanker(provider, model), 5)
 	mem := memory.NewMemoryStoreWithWorkspace(workspace, 100)
-	// register memory tool (needs store instance)
+	// register memory tools (all share the same store instance)
 	reg.Register(tools.NewWriteMemoryTool(mem))
+	reg.Register(tools.NewListMemoryTool(mem))
+	reg.Register(tools.NewReadMemoryTool(mem))
+	reg.Register(tools.NewEditMemoryTool(mem))
+	reg.Register(tools.NewDeleteMemoryTool(mem))
 
 	// register skill management tools (share the same os.Root)
 	skillMgr := tools.NewSkillManager(root)
@@ -75,7 +115,39 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 	reg.Register(tools.NewReadSkillTool(skillMgr))
 	reg.Register(tools.NewDeleteSkillTool(skillMgr))
 
-	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations}
+	// Connect to configured MCP servers and register their tools.
+	var mcpClients []*mcp.Client
+	for name, cfg := range mcpServers {
+		var client *mcp.Client
+		var err error
+		switch {
+		case cfg.Command != "":
+			client, err = mcp.NewStdioClient(name, cfg.Command, cfg.Args)
+		case cfg.URL != "":
+			client, err = mcp.NewHTTPClient(name, cfg.URL, cfg.Headers)
+		default:
+			log.Printf("MCP server %q: no command or url configured, skipping", name)
+			continue
+		}
+		if err != nil {
+			log.Printf("MCP server %q: failed to connect: %v", name, err)
+			continue
+		}
+		mcpClients = append(mcpClients, client)
+		for _, tool := range client.Tools() {
+			reg.Register(tools.NewMCPTool(client, name, tool))
+		}
+		log.Printf("MCP server %q: registered %d tools", name, len(client.Tools()))
+	}
+
+	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations, mcpClients: mcpClients}
+}
+
+// Close shuts down all MCP server connections.
+func (a *AgentLoop) Close() {
+	for _, c := range a.mcpClients {
+		_ = c.Close()
+	}
 }
 
 // Run starts processing inbound messages. This is a blocking call until context is canceled.
@@ -113,11 +185,15 @@ func (a *AgentLoop) Run(ctx context.Context) {
 				default:
 					log.Println("Outbound channel full, dropping message")
 				}
-				// save to session as well
-				session := a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
-				session.AddMessage("user", msg.Content)
-				session.AddMessage("assistant", "OK, I've remembered that.")
-				a.sessions.Save(session)
+				// Only save session for interactive channels, not system triggers.
+				if !isSystemChannel(msg.Channel) {
+					sess := a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
+					sess.AddMessage("user", msg.Content)
+					sess.AddMessage("assistant", "OK, I've remembered that.")
+					if err := a.sessions.Save(sess); err != nil {
+						log.Printf("error saving session: %v", err)
+					}
+				}
 				continue
 			}
 
@@ -133,12 +209,19 @@ func (a *AgentLoop) Run(ctx context.Context) {
 				}
 			}
 
-			// Build messages from session, long-term memory, and recent memory
-			session := a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
+			// Build messages from session, long-term memory, and recent memory.
+			// System channels (heartbeat, cron) get a blank ephemeral session so
+			// their history never accumulates and bloats the context window.
+			var sess *session.Session
+			if isSystemChannel(msg.Channel) {
+				sess = &session.Session{Key: msg.Channel + ":" + msg.ChatID}
+			} else {
+				sess = a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
+			}
 			// get file-backed memory context (long-term + today)
 			memCtx, _ := a.memory.GetMemoryContext()
 			memories := a.memory.Recent(5)
-			messages := a.context.BuildMessages(session.GetHistory(), msg.Content, msg.Channel, msg.ChatID, memCtx, memories)
+			messages := a.context.BuildMessages(sess.GetHistory(), msg.Content, msg.Channel, msg.ChatID, memCtx, memories)
 
 			iteration := 0
 			finalContent := ""
@@ -156,11 +239,23 @@ func (a *AgentLoop) Run(ctx context.Context) {
 				if resp.HasToolCalls {
 					// append assistant message with tool_calls attached
 					messages = append(messages, providers.Message{Role: "assistant", Content: resp.Content, ToolCalls: resp.ToolCalls})
-					// Execute each tool call and return results with "tool" role
+					// execute each tool call and return results with "tool" role
 					for _, tc := range resp.ToolCalls {
+						argsJSON, _ := json.Marshal(tc.Arguments)
+						sendChannelNotification(a.hub, msg.Channel, msg.ChatID,
+							fmt.Sprintf("🤖 Running: %s %s", tc.Name, argsJSON))
+
+						start := time.Now()
 						res, err := a.tools.Execute(ctx, tc.Name, tc.Arguments)
+						elapsed := time.Since(start).Round(time.Millisecond)
+
 						if err != nil {
+							sendChannelNotification(a.hub, msg.Channel, msg.ChatID,
+								fmt.Sprintf("📢 %s failed (%s): %v", tc.Name, elapsed, err))
 							res = "(tool error) " + err.Error()
+						} else {
+							sendChannelNotification(a.hub, msg.Channel, msg.ChatID,
+								fmt.Sprintf("📢 %s done (%s)", tc.Name, elapsed))
 						}
 						lastToolResult = res
 						messages = append(messages, providers.Message{Role: "tool", Content: res, ToolCallID: tc.ID})
@@ -179,10 +274,16 @@ func (a *AgentLoop) Run(ctx context.Context) {
 				finalContent = "I've completed processing but have no response to give."
 			}
 
-			// Save session
-			session.AddMessage("user", msg.Content)
-			session.AddMessage("assistant", finalContent)
-			a.sessions.Save(session)
+			// Save session for interactive channels only.
+			// System channels (heartbeat, cron) are stateless triggers — their
+			// history must not be persisted, otherwise the file grows unboundedly.
+			if !isSystemChannel(msg.Channel) {
+				sess.AddMessage("user", msg.Content)
+				sess.AddMessage("assistant", finalContent)
+				if err := a.sessions.Save(sess); err != nil {
+					log.Printf("error saving session: %v", err)
+				}
+			}
 
 			out := chat.Outbound{Channel: msg.Channel, ChatID: msg.ChatID, Content: finalContent}
 			select {
@@ -202,6 +303,19 @@ func (a *AgentLoop) Run(ctx context.Context) {
 func (a *AgentLoop) ProcessDirect(content string, timeout time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	// Set tool context so message/cron tools know the originating channel,
+	// matching what Run() does for hub-based messages.
+	if mt := a.tools.Get("message"); mt != nil {
+		if mtool, ok := mt.(interface{ SetContext(string, string) }); ok {
+			mtool.SetContext("cli", "direct")
+		}
+	}
+	if ct := a.tools.Get("cron"); ct != nil {
+		if ctool, ok := ct.(interface{ SetContext(string, string) }); ok {
+			ctool.SetContext("cli", "direct")
+		}
+	}
 
 	// Build full context (bootstrap files, skills, memory) just like the main loop
 	memCtx, _ := a.memory.GetMemoryContext()

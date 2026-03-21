@@ -73,17 +73,12 @@ func (l *Loader) loadSkill(skillPath string) (Skill, error) {
 	}
 
 	skill := Skill{}
-	inFrontmatter := true
 	contentStartIdx := 0
 
 	for i := 1; i < len(lines); i++ {
 		line := lines[i]
 		if line == "---" {
-			inFrontmatter = false
 			contentStartIdx = i + 1
-			break
-		}
-		if !inFrontmatter {
 			break
 		}
 		parts := strings.SplitN(line, ":", 2)

@@ -68,7 +68,7 @@ func (t *FilesystemTool) Execute(ctx context.Context, args map[string]interface{
 	if !ok {
 		return "", fmt.Errorf("filesystem: 'action' must be a string")
 	}
-	pathRaw, _ := args["path"]
+	pathRaw := args["path"]
 	pathStr := ""
 	if pathRaw != nil {
 		switch v := pathRaw.(type) {
@@ -90,7 +90,7 @@ func (t *FilesystemTool) Execute(ctx context.Context, args map[string]interface{
 		}
 		return string(b), nil
 	case "write":
-		contentRaw, _ := args["content"]
+		contentRaw := args["content"]
 		content := ""
 		switch v := contentRaw.(type) {
 		case string:
@@ -114,7 +114,7 @@ func (t *FilesystemTool) Execute(ctx context.Context, args map[string]interface{
 		if err != nil {
 			return "", err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		entries, err := f.ReadDir(-1)
 		if err != nil {
 			return "", err

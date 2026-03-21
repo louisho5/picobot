@@ -14,7 +14,7 @@ import (
 func TestMemoryCLI_ReadAppendWriteRecent(t *testing.T) {
 	// set HOME to a temp dir so onboard writes to temp
 	tmp := t.TempDir()
-	os.Setenv("HOME", tmp)
+	t.Setenv("HOME", tmp)
 
 	// create default config + workspace
 	if _, _, err := config.Onboard(); err != nil {
@@ -87,7 +87,7 @@ func TestMemoryCLI_ReadAppendWriteRecent(t *testing.T) {
 func TestMemoryCLI_Rank(t *testing.T) {
 	// set HOME to a temp dir so onboard writes to temp
 	tmp := t.TempDir()
-	os.Setenv("HOME", tmp)
+	t.Setenv("HOME", tmp)
 
 	// create default config + workspace
 	if _, _, err := config.Onboard(); err != nil {
@@ -118,7 +118,7 @@ func TestMemoryCLI_Rank(t *testing.T) {
 	if !strings.Contains(out, "buy milk") {
 		t.Fatalf("expected 'buy milk' in output, got: %q", out)
 	}
-	if !(strings.Contains(out, "milkshake") || strings.Contains(out, "Important facts")) {
+	if !strings.Contains(out, "milkshake") && !strings.Contains(out, "Important facts") {
 		t.Fatalf("expected either 'milkshake' or 'Important facts' in output, got: %q", out)
 	}
 }
@@ -126,14 +126,14 @@ func TestMemoryCLI_Rank(t *testing.T) {
 func TestAgentCLI_ModelFlag(t *testing.T) {
 	// set HOME to a temp dir so onboard writes to temp
 	tmp := t.TempDir()
-	os.Setenv("HOME", tmp)
+	t.Setenv("HOME", tmp)
 	if _, _, err := config.Onboard(); err != nil {
 		t.Fatalf("onboard failed: %v", err)
 	}
-	// remove OpenRouter from config so stub provider is used
+	// remove OpenAI from config so stub provider is used
 	cfgPath, _, _ := config.ResolveDefaultPaths()
 	cfg2, _ := config.LoadConfig()
-	cfg2.Providers.OpenRouter = nil
+	cfg2.Providers.OpenAI = nil
 	_ = config.SaveConfig(cfg2, cfgPath)
 
 	cmd := NewRootCmd()

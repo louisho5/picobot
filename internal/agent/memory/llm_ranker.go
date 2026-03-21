@@ -58,7 +58,7 @@ func (r *LLMMemoryRanker) Rank(query string, memories []MemoryItem, top int) []M
 	sb.WriteString("Query: " + query + "\n\n")
 	sb.WriteString("Memories (index: text):\n")
 	for i, m := range memories {
-		sb.WriteString(fmt.Sprintf("%d: %s\n", i, m.Text))
+		fmt.Fprintf(&sb, "%d: %s\n", i, m.Text)
 	}
 
 	messages := []providers.Message{{Role: "system", Content: sb.String()}, {Role: "user", Content: "Return an ordered list of indices ranked by relevance, or call the 'rank_memories' tool."}}
