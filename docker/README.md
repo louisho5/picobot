@@ -32,6 +32,7 @@ docker run -d \
   -e PICOBOT_MODEL="openrouter/free" \
   -e PICOBOT_MAX_TOKENS=8192 \
   -e PICOBOT_MAX_TOOL_ITERATIONS=100 \
+  -e PICOBOT_ENABLE_TOOL_ACTIVITY_INDICATOR=true \
   -e TELEGRAM_BOT_TOKEN="123456:ABC..." \
   -e TELEGRAM_ALLOW_FROM="8881234567" \
   -e DISCORD_BOT_TOKEN="MTIzNDU2..." \
@@ -53,6 +54,7 @@ docker run -d \
 | `PICOBOT_MODEL` | No | `google/gemini-2.5-flash` | LLM model to use |
 | `PICOBOT_MAX_TOKENS` | No | `8192` | Maximum tokens for LLM responses |
 | `PICOBOT_MAX_TOOL_ITERATIONS` | No | `100` | Maximum tool iterations per request |
+| `PICOBOT_ENABLE_TOOL_ACTIVITY_INDICATOR` | No | `true` | Send `🤖 Running` / `📢 done` progress messages during tool calls. Set to `false` for IoT or headless deployments |
 | `TELEGRAM_BOT_TOKEN` | No | — | Telegram bot token from @BotFather |
 | `TELEGRAM_ALLOW_FROM` | No | — | Comma-separated Telegram user IDs |
 | `DISCORD_BOT_TOKEN` | No | — | Discord bot token from Developer Portal |

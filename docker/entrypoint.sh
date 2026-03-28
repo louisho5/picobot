@@ -98,5 +98,16 @@ if [ -n "${PICOBOT_MAX_TOOL_ITERATIONS}" ]; then
   jq --argjson iter "${PICOBOT_MAX_TOOL_ITERATIONS}" '.agents.defaults.maxToolIterations = $iter' "${CONFIG}" > "$TMP" && mv "$TMP" "${CONFIG}"
 fi
 
+if [ -n "${PICOBOT_ENABLE_TOOL_ACTIVITY_INDICATOR}" ]; then
+  echo "Applying PICOBOT_ENABLE_TOOL_ACTIVITY_INDICATOR from environment..."
+  TMP=$(mktemp)
+  VAL=$(echo "${PICOBOT_ENABLE_TOOL_ACTIVITY_INDICATOR}" | tr '[:upper:]' '[:lower:]')
+  if [ "$VAL" = "false" ] || [ "$VAL" = "0" ]; then
+    jq '.agents.defaults.enableToolActivityIndicator = false' "${CONFIG}" > "$TMP" && mv "$TMP" "${CONFIG}"
+  else
+    jq '.agents.defaults.enableToolActivityIndicator = true' "${CONFIG}" > "$TMP" && mv "$TMP" "${CONFIG}"
+  fi
+fi
+
 echo "Starting picobot $@..."
 exec picobot "$@"

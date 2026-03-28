@@ -22,13 +22,14 @@ type AgentsConfig struct {
 }
 
 type AgentDefaults struct {
-	Workspace          string  `json:"workspace"`
-	Model              string  `json:"model"`
-	MaxTokens          int     `json:"maxTokens"`
-	Temperature        float64 `json:"temperature"`
-	MaxToolIterations  int     `json:"maxToolIterations"`
-	HeartbeatIntervalS int     `json:"heartbeatIntervalS"`
-	RequestTimeoutS    int     `json:"requestTimeoutS"`
+	Workspace                   string  `json:"workspace"`
+	Model                       string  `json:"model"`
+	MaxTokens                   int     `json:"maxTokens"`
+	Temperature                 float64 `json:"temperature"`
+	MaxToolIterations           int     `json:"maxToolIterations"`
+	HeartbeatIntervalS          int     `json:"heartbeatIntervalS"`
+	RequestTimeoutS             int     `json:"requestTimeoutS"`
+	EnableToolActivityIndicator *bool   `json:"enableToolActivityIndicator,omitempty"`
 }
 
 type ChannelsConfig struct {

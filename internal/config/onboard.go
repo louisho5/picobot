@@ -14,13 +14,14 @@ import (
 func DefaultConfig() Config {
 	return Config{
 		Agents: AgentsConfig{Defaults: AgentDefaults{
-			Workspace:          "~/.picobot/workspace",
-			Model:              "stub-model",
-			MaxTokens:          8192,
-			Temperature:        0.7,
-			MaxToolIterations:  100,
-			HeartbeatIntervalS: 60,
-			RequestTimeoutS:    60,
+			Workspace:                   "~/.picobot/workspace",
+			Model:                       "stub-model",
+			MaxTokens:                   8192,
+			Temperature:                 0.7,
+			MaxToolIterations:           100,
+			HeartbeatIntervalS:          60,
+			RequestTimeoutS:             60,
+			EnableToolActivityIndicator: boolPtr(true),
 		}},
 		Channels: ChannelsConfig{
 			Telegram: TelegramConfig{Enabled: false, Token: "", AllowFrom: []string{}},
@@ -34,6 +35,9 @@ func DefaultConfig() Config {
 		},
 	}
 }
+
+// boolPtr returns a pointer to the given bool value.
+func boolPtr(b bool) *bool { return &b }
 
 // SaveConfig writes the config to the given path (creating parent dirs).
 func SaveConfig(cfg Config, path string) error {

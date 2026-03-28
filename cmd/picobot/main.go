@@ -26,7 +26,7 @@ import (
 	"github.com/local/picobot/internal/providers"
 )
 
-const version = "0.2.0"
+const version = "0.2.1"
 
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
@@ -140,6 +140,9 @@ func NewRootCmd() *cobra.Command {
 			}
 			ag := agent.NewAgentLoop(hub, provider, model, maxIter, cfg.Agents.Defaults.Workspace, nil, cfg.MCPServers)
 			defer ag.Close()
+			if cfg.Agents.Defaults.EnableToolActivityIndicator != nil && !*cfg.Agents.Defaults.EnableToolActivityIndicator {
+				ag.SetToolActivityIndicator(false)
+			}
 
 			resp, err := ag.ProcessDirect(msg, 60*time.Second)
 			if err != nil {
@@ -188,6 +191,9 @@ func NewRootCmd() *cobra.Command {
 			}
 			ag := agent.NewAgentLoop(hub, provider, model, maxIter, cfg.Agents.Defaults.Workspace, scheduler, cfg.MCPServers)
 			defer ag.Close()
+			if cfg.Agents.Defaults.EnableToolActivityIndicator != nil && !*cfg.Agents.Defaults.EnableToolActivityIndicator {
+				ag.SetToolActivityIndicator(false)
+			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 

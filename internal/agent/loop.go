@@ -54,16 +54,17 @@ func isSystemChannel(channel string) bool {
 
 // AgentLoop is the core processing loop; it holds an LLM provider, tools, sessions and context builder.
 type AgentLoop struct {
-	hub           *chat.Hub
-	provider      providers.LLMProvider
-	tools         *tools.Registry
-	sessions      *session.SessionManager
-	context       *ContextBuilder
-	memory        *memory.MemoryStore
-	model         string
-	maxIterations int
-	running       bool
-	mcpClients    []*mcp.Client
+	hub                *chat.Hub
+	provider           providers.LLMProvider
+	tools              *tools.Registry
+	sessions           *session.SessionManager
+	context            *ContextBuilder
+	memory             *memory.MemoryStore
+	model              string
+	maxIterations      int
+	running            bool
+	mcpClients         []*mcp.Client
+	enableToolActivity bool
 }
 
 // NewAgentLoop creates a new AgentLoop with the given provider.
@@ -140,7 +141,12 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 		log.Printf("MCP server %q: registered %d tools", name, len(client.Tools()))
 	}
 
-	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations, mcpClients: mcpClients}
+	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations, mcpClients: mcpClients, enableToolActivity: true}
+}
+
+// SetToolActivityIndicator controls whether the feedback of tool progress
+func (a *AgentLoop) SetToolActivityIndicator(enabled bool) {
+	a.enableToolActivity = enabled
 }
 
 // Close shuts down all MCP server connections.
@@ -242,20 +248,26 @@ func (a *AgentLoop) Run(ctx context.Context) {
 					// execute each tool call and return results with "tool" role
 					for _, tc := range resp.ToolCalls {
 						argsJSON, _ := json.Marshal(tc.Arguments)
-						sendChannelNotification(a.hub, msg.Channel, msg.ChatID,
-							fmt.Sprintf("🤖 Running: %s %s", tc.Name, argsJSON))
+						if a.enableToolActivity {
+							sendChannelNotification(a.hub, msg.Channel, msg.ChatID,
+								fmt.Sprintf("🤖 Running: %s %s", tc.Name, argsJSON))
+						}
 
 						start := time.Now()
 						res, err := a.tools.Execute(ctx, tc.Name, tc.Arguments)
 						elapsed := time.Since(start).Round(time.Millisecond)
 
 						if err != nil {
-							sendChannelNotification(a.hub, msg.Channel, msg.ChatID,
-								fmt.Sprintf("📢 %s failed (%s): %v", tc.Name, elapsed, err))
+							if a.enableToolActivity {
+								sendChannelNotification(a.hub, msg.Channel, msg.ChatID,
+									fmt.Sprintf("📢 %s failed (%s): %v", tc.Name, elapsed, err))
+							}
 							res = "(tool error) " + err.Error()
 						} else {
-							sendChannelNotification(a.hub, msg.Channel, msg.ChatID,
-								fmt.Sprintf("📢 %s done (%s)", tc.Name, elapsed))
+							if a.enableToolActivity {
+								sendChannelNotification(a.hub, msg.Channel, msg.ChatID,
+									fmt.Sprintf("📢 %s done (%s)", tc.Name, elapsed))
+							}
 						}
 						lastToolResult = res
 						messages = append(messages, providers.Message{Role: "tool", Content: res, ToolCallID: tc.ID})
