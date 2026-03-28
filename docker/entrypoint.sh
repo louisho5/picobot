@@ -80,6 +80,31 @@ if [ -n "${SLACK_ALLOW_CHANNELS}" ]; then
   jq --argjson allow "${ALLOW_JSON}" '.channels.slack.allowChannels = $allow' "${CONFIG}" >"$TMP" && mv "$TMP" "${CONFIG}"
 fi
 
+if [ -n "${SIGNAL_API_URL}" ]; then
+  echo "Applying SIGNAL_API_URL from environment..."
+  TMP=$(mktemp)
+  jq --arg url "${SIGNAL_API_URL}" '.channels.signal.enabled = true | .channels.signal.apiURL = $url' "${CONFIG}" >"$TMP" && mv "$TMP" "${CONFIG}"
+fi
+
+if [ -n "${SIGNAL_API_TOKEN}" ]; then
+  echo "Applying SIGNAL_API_TOKEN from environment..."
+  TMP=$(mktemp)
+  jq --arg token "${SIGNAL_API_TOKEN}" '.channels.signal.apiToken = $token' "${CONFIG}" >"$TMP" && mv "$TMP" "${CONFIG}"
+fi
+
+if [ -n "${SIGNAL_NUMBER}" ]; then
+  echo "Applying SIGNAL_NUMBER from environment..."
+  TMP=$(mktemp)
+  jq --arg num "${SIGNAL_NUMBER}" '.channels.signal.number = $num' "${CONFIG}" >"$TMP" && mv "$TMP" "${CONFIG}"
+fi
+
+if [ -n "${SIGNAL_ALLOW_FROM}" ]; then
+  echo "Applying SIGNAL_ALLOW_FROM from environment..."
+  ALLOW_JSON=$(echo "${SIGNAL_ALLOW_FROM}" | jq -R 'split(",")')
+  TMP=$(mktemp)
+  jq --argjson allow "${ALLOW_JSON}" '.channels.signal.allowFrom = $allow' "${CONFIG}" >"$TMP" && mv "$TMP" "${CONFIG}"
+fi
+
 if [ -n "${PICOBOT_MODEL}" ]; then
   echo "Applying PICOBOT_MODEL from environment..."
   TMP=$(mktemp)
