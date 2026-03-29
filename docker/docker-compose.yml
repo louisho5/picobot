@@ -16,6 +16,8 @@ services:
       - PICOBOT_MAX_TOKENS=${PICOBOT_MAX_TOKENS:-8192}
       # Optional: Maximum tool iterations per request (default: 100)
       - PICOBOT_MAX_TOOL_ITERATIONS=${PICOBOT_MAX_TOOL_ITERATIONS:-100}
+      # Optional: Show tool activity indicators during tool calls (default: true).
+      - PICOBOT_ENABLE_TOOL_ACTIVITY_INDICATOR=${PICOBOT_ENABLE_TOOL_ACTIVITY_INDICATOR:-true}
       # Optional: Telegram bot token from @BotFather
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       # Optional: Comma-separated Telegram user IDs allowed to chat

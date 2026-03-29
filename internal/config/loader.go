@@ -42,4 +42,8 @@ func applyEnvOverrides(cfg *Config) {
 			cfg.Agents.Defaults.MaxToolIterations = n
 		}
 	}
+	if v := os.Getenv("PICOBOT_ENABLE_TOOL_ACTIVITY_INDICATOR"); v != "" {
+		b := v != "false" && v != "0" && v != "False" && v != "FALSE"
+		cfg.Agents.Defaults.EnableToolActivityIndicator = &b
+	}
 }
