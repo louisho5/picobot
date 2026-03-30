@@ -148,3 +148,82 @@ func TestAgentCLI_ModelFlag(t *testing.T) {
 		t.Fatalf("expected stub echo output, got: %q", out)
 	}
 }
+
+func TestOnboardCLI_ConfirmOverwrite(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantAborted bool
+	}{
+		{"confirm yes", "y\n", false},
+		{"confirm yes uppercase", "Y\n", false},
+		{"confirm no", "n\n", true},
+		{"confirm empty (default no)", "\n", true},
+		{"confirm garbage", "maybe\n", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tmp := t.TempDir()
+			t.Setenv("HOME", tmp)
+
+			// first onboard — no prompt expected
+			if _, _, err := config.Onboard(); err != nil {
+				t.Fatalf("initial onboard failed: %v", err)
+			}
+
+			cfgPath, _, _ := config.ResolveDefaultPaths()
+			originalStat, _ := os.Stat(cfgPath)
+
+			cmd := NewRootCmd()
+			out := &bytes.Buffer{}
+			cmd.SetOut(out)
+			cmd.SetIn(strings.NewReader(tc.input))
+			cmd.SetArgs([]string{"onboard"})
+			if err := cmd.Execute(); err != nil {
+				t.Fatalf("onboard failed: %v", err)
+			}
+
+			output := out.String()
+			if tc.wantAborted {
+				if !strings.Contains(output, "Aborted") {
+					t.Errorf("expected 'Aborted' in output, got: %q", output)
+				}
+				if strings.Contains(output, "Wrote config") {
+					t.Errorf("config was rewritten after abort")
+				}
+				newStat, _ := os.Stat(cfgPath)
+				if newStat.ModTime() != originalStat.ModTime() {
+					t.Errorf("config file mod time changed after abort")
+				}
+			} else {
+				if strings.Contains(output, "Aborted") {
+					t.Errorf("unexpected 'Aborted' in output: %q", output)
+				}
+				if !strings.Contains(output, "Wrote config") {
+					t.Errorf("expected 'Wrote config' in output, got: %q", output)
+				}
+			}
+		})
+	}
+}
+
+func TestOnboardCLI_NoPromptWhenConfigMissing(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	cmd := NewRootCmd()
+	out := &bytes.Buffer{}
+	cmd.SetOut(out)
+	cmd.SetIn(strings.NewReader("")) // no input — would block if prompt appeared
+	cmd.SetArgs([]string{"onboard"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("onboard failed: %v", err)
+	}
+	if strings.Contains(out.String(), "Overwrite?") {
+		t.Errorf("unexpected overwrite prompt when config does not exist")
+	}
+	if !strings.Contains(out.String(), "Wrote config") {
+		t.Errorf("expected success message, got: %q", out.String())
+	}
+}
