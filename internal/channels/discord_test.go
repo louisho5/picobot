@@ -97,6 +97,17 @@ func TestStartDiscord_EmptyToken(t *testing.T) {
 	}
 }
 
+func TestStartDiscord_RejectsEmptyAllowFromByDefault(t *testing.T) {
+	hub := chat.NewHub(100)
+	err := StartDiscord(context.Background(), hub, "test-token", nil)
+	if err == nil {
+		t.Error("StartDiscord with empty allowFrom should return error")
+	}
+	if !strings.Contains(err.Error(), "allowFrom is empty") {
+		t.Errorf("expected allowFrom error, got: %v", err)
+	}
+}
+
 // TestDiscordClient_IsAllowed tests the allowlist logic.
 func TestDiscordClient_IsAllowed(t *testing.T) {
 	// This tests the allowlist logic conceptually
