@@ -144,7 +144,11 @@ func NewRootCmd() *cobra.Command {
 				ag.SetToolActivityIndicator(false)
 			}
 
-			resp, err := ag.ProcessDirect(msg, 60*time.Second)
+			agentTimeout := time.Duration(cfg.Agents.Defaults.AgentTimeoutS) * time.Second
+			if agentTimeout <= 0 {
+				agentTimeout = 5 * time.Minute
+			}
+			resp, err := ag.ProcessDirect(msg, agentTimeout)
 			if err != nil {
 				fmt.Fprintln(cmd.ErrOrStderr(), "error:", err)
 				return

@@ -21,6 +21,7 @@ func DefaultConfig() Config {
 			MaxToolIterations:           100,
 			HeartbeatIntervalS:          60,
 			RequestTimeoutS:             60,
+			AgentTimeoutS:               300,
 			EnableToolActivityIndicator: boolPtr(true),
 		}},
 		Channels: ChannelsConfig{
