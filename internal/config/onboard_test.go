@@ -69,6 +69,33 @@ func TestSaveAndLoadConfig(t *testing.T) {
 	}
 }
 
+func TestDefaultConfig_AgentTimeoutS(t *testing.T) {
+	cfg := DefaultConfig()
+	if cfg.Agents.Defaults.AgentTimeoutS != 300 {
+		t.Errorf("AgentTimeoutS = %d, want 300", cfg.Agents.Defaults.AgentTimeoutS)
+	}
+}
+
+func TestDefaultConfig_AgentTimeoutS_RoundTrips(t *testing.T) {
+	d := t.TempDir()
+	cfg := DefaultConfig()
+	path := filepath.Join(d, "config.json")
+	if err := SaveConfig(cfg, path); err != nil {
+		t.Fatalf("SaveConfig failed: %v", err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading saved config failed: %v", err)
+	}
+	var parsed Config
+	if err := json.Unmarshal(b, &parsed); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	if parsed.Agents.Defaults.AgentTimeoutS != 300 {
+		t.Errorf("AgentTimeoutS after round-trip = %d, want 300", parsed.Agents.Defaults.AgentTimeoutS)
+	}
+}
+
 func TestDefaultConfig_IncludesWhatsApp(t *testing.T) {
 	cfg := DefaultConfig()
 
