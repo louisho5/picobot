@@ -46,6 +46,20 @@ func NewRootCmd() *cobra.Command {
 		Use:   "onboard",
 		Short: "Create default config and workspace",
 		Run: func(cmd *cobra.Command, args []string) {
+			cfgPath, _, err := config.ResolveDefaultPaths()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "onboard failed: %v\n", err)
+				return
+			}
+			if _, err := os.Stat(cfgPath); err == nil {
+				fmt.Printf("Config already exists at %s. Overwrite? [y/N] ", cfgPath)
+				scanner := bufio.NewScanner(os.Stdin)
+				scanner.Scan()
+				if strings.ToLower(strings.TrimSpace(scanner.Text())) != "y" {
+					fmt.Println("Aborted.")
+					return
+				}
+			}
 			cfgPath, workspacePath, err := config.Onboard()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "onboard failed: %v\n", err)
