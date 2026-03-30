@@ -52,11 +52,11 @@ func NewRootCmd() *cobra.Command {
 				return
 			}
 			if _, err := os.Stat(cfgPath); err == nil {
-				fmt.Printf("Config already exists at %s. Overwrite? [y/N] ", cfgPath)
-				scanner := bufio.NewScanner(os.Stdin)
+				fmt.Fprintf(cmd.OutOrStdout(), "Config already exists at %s. Overwrite? [y/N] ", cfgPath)
+				scanner := bufio.NewScanner(cmd.InOrStdin())
 				scanner.Scan()
 				if strings.ToLower(strings.TrimSpace(scanner.Text())) != "y" {
-					fmt.Println("Aborted.")
+					fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
 					return
 				}
 			}
@@ -65,7 +65,7 @@ func NewRootCmd() *cobra.Command {
 				fmt.Fprintf(os.Stderr, "onboard failed: %v\n", err)
 				return
 			}
-			fmt.Printf("Wrote config to %s\nInitialized workspace at %s\n", cfgPath, workspacePath)
+			fmt.Fprintf(cmd.OutOrStdout(), "Wrote config to %s\nInitialized workspace at %s\n", cfgPath, workspacePath)
 		},
 	}
 
