@@ -29,6 +29,7 @@ type AgentDefaults struct {
 	MaxToolIterations           int     `json:"maxToolIterations"`
 	HeartbeatIntervalS          int     `json:"heartbeatIntervalS"`
 	RequestTimeoutS             int     `json:"requestTimeoutS"`
+	AgentTimeoutS               int     `json:"agentTimeoutS"`
 	EnableToolActivityIndicator *bool   `json:"enableToolActivityIndicator,omitempty"`
 }
 
