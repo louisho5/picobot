@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestInitializeWorkspaceCreatesFiles(t *testing.T) {
@@ -121,5 +122,57 @@ func TestDefaultConfig_WhatsAppRoundTrips(t *testing.T) {
 	}
 	if len(wa.AllowFrom) != 1 || wa.AllowFrom[0] != "15551234567" {
 		t.Errorf("AllowFrom = %v, want [15551234567]", wa.AllowFrom)
+	}
+}
+
+// TestLoadConfigFromFile verifies that LoadConfigFromFile reads on-disk values
+// without applying environment variable overrides.
+func TestLoadConfigFromFile(t *testing.T) {
+	// Write a minimal config to a temp file
+	cfg := Config{}
+	cfg.Agents.Defaults.Model = "on-disk-model"
+	cfg.Agents.Defaults.MaxTokens = 1234
+	cfg.Providers.Codex = &CodexProviderConfig{
+		AccessToken:  "tok",
+		RefreshToken: "ref",
+		ExpiresAt:    time.Now().Add(10 * time.Minute),
+		AccountID:    "acct-999",
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	if err := SaveConfig(cfg, path); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+
+	// Set env overrides that LoadConfig would apply
+	t.Setenv("PICOBOT_MODEL", "env-model")
+	t.Setenv("PICOBOT_MAX_TOKENS", "9999")
+
+	// LoadConfigFromFile must ignore those env vars
+	got, err := LoadConfigFromFile(path)
+	if err != nil {
+		t.Fatalf("LoadConfigFromFile: %v", err)
+	}
+	if got.Agents.Defaults.Model != "on-disk-model" {
+		t.Errorf("model: got %q, want %q", got.Agents.Defaults.Model, "on-disk-model")
+	}
+	if got.Agents.Defaults.MaxTokens != 1234 {
+		t.Errorf("maxTokens: got %d, want 1234", got.Agents.Defaults.MaxTokens)
+	}
+	if got.Providers.Codex == nil || got.Providers.Codex.AccountID != "acct-999" {
+		t.Errorf("Codex token not preserved: %+v", got.Providers.Codex)
+	}
+}
+
+// TestLoadConfigFromFileMissingReturnsZero verifies that a missing file returns
+// an empty config rather than an error.
+func TestLoadConfigFromFileMissingReturnsZero(t *testing.T) {
+	got, err := LoadConfigFromFile("/nonexistent/path/config.json")
+	if err != nil {
+		t.Fatalf("expected nil error for missing file, got %v", err)
+	}
+	if got.Agents.Defaults.Model != "" {
+		t.Errorf("expected zero config, got model=%q", got.Agents.Defaults.Model)
 	}
 }

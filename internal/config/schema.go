@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 // Config holds picobot configuration (minimal for v0).
 type Config struct {
 	Agents     AgentsConfig               `json:"agents"`
@@ -66,10 +68,21 @@ type WhatsAppConfig struct {
 }
 
 type ProvidersConfig struct {
-	OpenAI *ProviderConfig `json:"openai,omitempty"`
+	OpenAI *ProviderConfig      `json:"openai,omitempty"`
+	Codex  *CodexProviderConfig `json:"codex,omitempty"`
 }
 
 type ProviderConfig struct {
 	APIKey  string `json:"apiKey"`
 	APIBase string `json:"apiBase"`
+}
+
+// CodexProviderConfig holds OAuth tokens for the OpenAI Codex provider.
+// These are written by `picobot provider login openai-codex` and refreshed
+// automatically by the Codex provider on each API call.
+type CodexProviderConfig struct {
+	AccessToken  string    `json:"accessToken,omitempty"`
+	RefreshToken string    `json:"refreshToken,omitempty"`
+	ExpiresAt    time.Time `json:"expiresAt,omitempty"`
+	AccountID    string    `json:"accountId,omitempty"`
 }

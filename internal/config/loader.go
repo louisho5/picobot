@@ -14,16 +14,33 @@ func LoadConfig() (Config, error) {
 		home = "."
 	}
 	path := filepath.Join(home, ".picobot", "config.json")
-	var cfg Config
-	f, err := os.Open(path)
-	if err == nil {
-		defer func() { _ = f.Close() }()
-		if err := json.NewDecoder(f).Decode(&cfg); err != nil {
-			return Config{}, err
-		}
+	cfg, err := LoadConfigFromFile(path)
+	if err != nil {
+		return Config{}, err
 	}
 	// env vars always take precedence over the config file, enabling runtime overrides without editing config.json.
 	applyEnvOverrides(&cfg)
+	return cfg, nil
+}
+
+// LoadConfigFromFile reads and decodes config from the given path without
+// applying any environment variable overrides. Use this when you need to
+// read the on-disk state of the config for the purpose of updating a single
+// field and writing it back, so that runtime env overrides are not
+// inadvertently persisted.
+func LoadConfigFromFile(path string) (Config, error) {
+	var cfg Config
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return cfg, nil // missing file is not an error; return zero config
+		}
+		return Config{}, err
+	}
+	defer func() { _ = f.Close() }()
+	if err := json.NewDecoder(f).Decode(&cfg); err != nil {
+		return Config{}, err
+	}
 	return cfg, nil
 }
 

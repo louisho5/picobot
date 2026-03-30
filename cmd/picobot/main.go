@@ -18,6 +18,7 @@ import (
 
 	"github.com/local/picobot/internal/agent"
 	"github.com/local/picobot/internal/agent/memory"
+	"github.com/local/picobot/internal/auth"
 	"github.com/local/picobot/internal/channels"
 	"github.com/local/picobot/internal/chat"
 	"github.com/local/picobot/internal/config"
@@ -123,13 +124,15 @@ func NewRootCmd() *cobra.Command {
 
 			hub := chat.NewHub(100)
 			cfg, _ := config.LoadConfig()
-			provider := providers.NewProviderFromConfig(cfg)
 
-			// choose model: flag > config default > provider default
+			// Resolve final model before constructing the provider so that the
+			// correct provider type is selected (e.g. openai-codex/ prefix).
+			// Order: flag > config default; provider default used only as last resort.
 			model := modelFlag
-			if model == "" && cfg.Agents.Defaults.Model != "" {
+			if model == "" {
 				model = cfg.Agents.Defaults.Model
 			}
+			provider := providers.NewProviderFromConfig(cfg, model)
 			if model == "" {
 				model = provider.GetDefaultModel()
 			}
@@ -162,14 +165,15 @@ func NewRootCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			hub := chat.NewHub(200)
 			cfg, _ := config.LoadConfig()
-			provider := providers.NewProviderFromConfig(cfg)
 
-			// choose model: flag > config > provider default
+			// Resolve final model before constructing the provider so that the
+			// correct provider type is selected (e.g. openai-codex/ prefix).
 			modelFlag, _ := cmd.Flags().GetString("model")
 			model := modelFlag
-			if model == "" && cfg.Agents.Defaults.Model != "" {
+			if model == "" {
 				model = cfg.Agents.Defaults.Model
 			}
+			provider := providers.NewProviderFromConfig(cfg, model)
 			if model == "" {
 				model = provider.GetDefaultModel()
 			}
@@ -450,7 +454,7 @@ func NewRootCmd() *cobra.Command {
 					items = append(items, memory.MemoryItem{Kind: "long", Text: line})
 				}
 			}
-			provider := providers.NewProviderFromConfig(cfg)
+			provider := providers.NewProviderFromConfig(cfg, cfg.Agents.Defaults.Model)
 			var logger *log.Logger
 			if verbose {
 				logger = log.New(cmd.OutOrStdout(), "ranker: ", 0)
@@ -468,6 +472,34 @@ func NewRootCmd() *cobra.Command {
 	memoryCmd.AddCommand(rankCmd)
 
 	rootCmd.AddCommand(memoryCmd)
+
+	// provider command — manage LLM provider authentication
+	providerCmd := &cobra.Command{
+		Use:   "provider",
+		Short: "Manage LLM provider authentication",
+	}
+
+	providerLoginCmd := &cobra.Command{
+		Use:   "login [provider]",
+		Short: "Authenticate with an LLM provider (currently: openai-codex)",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			manual, _ := cmd.Flags().GetBool("manual")
+			providerName := strings.ToLower(args[0])
+			switch providerName {
+			case "openai-codex":
+				loginCodexProvider(bufio.NewReader(os.Stdin), manual)
+			default:
+				fmt.Fprintf(os.Stderr, "unknown provider %q — supported: openai-codex\n", providerName)
+			}
+		},
+	}
+	providerLoginCmd.Flags().BoolP("manual", "n", false,
+		"Skip local callback server and paste the redirect URL manually (required in Docker / headless environments)")
+
+	providerCmd.AddCommand(providerLoginCmd)
+	rootCmd.AddCommand(providerCmd)
+
 	return rootCmd
 }
 
@@ -644,6 +676,50 @@ func setupSlackInteractive(reader *bufio.Reader, cfg config.Config, cfgPath stri
 
 	fmt.Println()
 	fmt.Println("Slack configured! Run 'picobot gateway' to start.")
+}
+
+func loginCodexProvider(reader *bufio.Reader, manual bool) {
+	fmt.Println()
+	fmt.Println("=== OpenAI Codex Login ===")
+	fmt.Println()
+	fmt.Println("This will authenticate picobot with your ChatGPT account using OAuth.")
+	fmt.Println("Requirements: ChatGPT Plus or Pro subscription.")
+	fmt.Println()
+
+	tok, err := auth.LoginCodexInteractive(reader, manual)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "authentication failed: %v\n", err)
+		return
+	}
+
+	// Save to config.json
+	cfg, loadErr := config.LoadConfig()
+	if loadErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not load existing config: %v\n", loadErr)
+		cfg = config.Config{}
+	}
+	cfg.Providers.Codex = tok
+
+	cfgPath, _, err := config.ResolveDefaultPaths()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "could not resolve config path: %v\n", err)
+		return
+	}
+	if err := config.SaveConfig(cfg, cfgPath); err != nil {
+		fmt.Fprintf(os.Stderr, "could not save config: %v\n", err)
+		return
+	}
+
+	fmt.Println()
+	fmt.Printf("Authenticated as account %s\n", tok.AccountID)
+	fmt.Println()
+	fmt.Println("Tokens saved to", cfgPath)
+	fmt.Println()
+	fmt.Println("To use Codex, set agents.defaults.model in config.json:")
+	fmt.Println(`  "agents": { "defaults": { "model": "openai-codex/gpt-5.4-mini" } }`)
+	fmt.Println()
+	fmt.Println("Or run a one-off query:")
+	fmt.Println(`  picobot agent -m "Hello" -M openai-codex/gpt-5.4-mini`)
 }
 
 func setupWhatsAppInteractive(cfg config.Config, cfgPath string) {
