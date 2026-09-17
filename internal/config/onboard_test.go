@@ -27,7 +27,7 @@ func TestInitializeWorkspaceCreatesFiles(t *testing.T) {
 	}
 
 	// Verify embedded skills were extracted
-	embeddedSkills := []string{"example", "weather", "cron"}
+	embeddedSkills := []string{"example", "weather", "cron", "puppeteer"}
 	for _, skill := range embeddedSkills {
 		skillPath := filepath.Join(d, "skills", skill, "SKILL.md")
 		if _, err := os.Stat(skillPath); err != nil {
