@@ -97,3 +97,57 @@ func (h *Hub) Close() {
 	close(h.In)
 	close(h.Out)
 }
+
+var (
+	approvalsMu sync.Mutex
+	approvals   = make(map[string]chan string)
+)
+
+// RegisterApproval registers a pending approval channel for a chat session.
+func RegisterApproval(key string, ch chan string) {
+	approvalsMu.Lock()
+	approvals[key] = ch
+	approvalsMu.Unlock()
+}
+
+// UnregisterApproval removes a pending approval registration.
+func UnregisterApproval(key string) {
+	approvalsMu.Lock()
+	delete(approvals, key)
+	approvalsMu.Unlock()
+}
+
+// TriggerApproval forwards user input to a waiting approval channel if one exists.
+func TriggerApproval(key string, response string) bool {
+	approvalsMu.Lock()
+	ch, exists := approvals[key]
+	approvalsMu.Unlock()
+	if exists {
+		select {
+		case ch <- response:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+type contextKey string
+const (
+	ChannelKey contextKey = "channel"
+	ChatIDKey  contextKey = "chatID"
+)
+
+// WithContext returns a new context with channel and chatID values.
+func WithContext(ctx context.Context, channel, chatID string) context.Context {
+	ctx = context.WithValue(ctx, ChannelKey, channel)
+	return context.WithValue(ctx, ChatIDKey, chatID)
+}
+
+// FromContext extracts the channel and chatID values from a context.
+func FromContext(ctx context.Context) (string, string) {
+	ch, _ := ctx.Value(ChannelKey).(string)
+	id, _ := ctx.Value(ChatIDKey).(string)
+	return ch, id
+}

@@ -154,6 +154,9 @@ func NewRootCmd() *cobra.Command {
 			}
 			ag := agent.NewAgentLoop(hub, provider, model, maxIter, cfg.Agents.Defaults.Workspace, nil, cfg.MCPServers)
 			defer ag.Close()
+			if cfg.Agents.Defaults.MemoryRanker == "llm" {
+				ag.SetMemoryRanker(memory.NewLLMRanker(provider, model))
+			}
 			if cfg.Agents.Defaults.EnableToolActivityIndicator != nil && !*cfg.Agents.Defaults.EnableToolActivityIndicator {
 				ag.SetToolActivityIndicator(false)
 			}
@@ -175,7 +178,10 @@ func NewRootCmd() *cobra.Command {
 		Short: "Start long-running gateway (agent, channels, heartbeat)",
 		Run: func(cmd *cobra.Command, args []string) {
 			hub := chat.NewHub(200)
-			cfg, _ := config.LoadConfig()
+			cfg, err := config.LoadConfig()
+			if err != nil {
+				log.Fatalf("failed to load config: %v", err)
+			}
 			provider := providers.NewProviderFromConfig(cfg)
 
 			// choose model: flag > config > provider default
@@ -205,6 +211,9 @@ func NewRootCmd() *cobra.Command {
 			}
 			ag := agent.NewAgentLoop(hub, provider, model, maxIter, cfg.Agents.Defaults.Workspace, scheduler, cfg.MCPServers)
 			defer ag.Close()
+			if cfg.Agents.Defaults.MemoryRanker == "llm" {
+				ag.SetMemoryRanker(memory.NewLLMRanker(provider, model))
+			}
 			if cfg.Agents.Defaults.EnableToolActivityIndicator != nil && !*cfg.Agents.Defaults.EnableToolActivityIndicator {
 				ag.SetToolActivityIndicator(false)
 			}
@@ -271,8 +280,9 @@ func NewRootCmd() *cobra.Command {
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 			<-sigCh
-			fmt.Println("shutting down gateway")
+			fmt.Println("\nshutting down gateway...")
 			cancel()
+			time.Sleep(500 * time.Millisecond)
 		},
 	}
 	gatewayCmd.Flags().StringP("model", "M", "", "Model to use (overrides model in config.json)")

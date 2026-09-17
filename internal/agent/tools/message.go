@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/local/picobot/internal/chat"
 )
@@ -12,6 +13,7 @@ import (
 // It holds a context (channel + chatID) which should be set per-incoming-message.
 type MessageTool struct {
 	hub     *chat.Hub
+	mu      sync.RWMutex
 	channel string
 	chatID  string
 }
@@ -38,6 +40,8 @@ func (m *MessageTool) Parameters() map[string]interface{} {
 
 // SetContext sets the current channel and chat id for outgoing messages.
 func (m *MessageTool) SetContext(channel, chatID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.channel = channel
 	m.chatID = chatID
 }
@@ -57,10 +61,22 @@ func (m *MessageTool) Execute(ctx context.Context, args map[string]interface{}) 
 	if content == "" {
 		return "", fmt.Errorf("message tool: 'content' argument required")
 	}
+	channel, chatID := chat.FromContext(ctx)
+	if channel == "" {
+		m.mu.RLock()
+		channel = m.channel
+		m.mu.RUnlock()
+	}
+	if chatID == "" {
+		m.mu.RLock()
+		chatID = m.chatID
+		m.mu.RUnlock()
+	}
+
 	// Publish outbound message to hub
 	out := chat.Outbound{
-		Channel: m.channel,
-		ChatID:  m.chatID,
+		Channel: channel,
+		ChatID:  chatID,
 		Content: content,
 	}
 	select {

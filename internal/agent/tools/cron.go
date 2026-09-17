@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/local/picobot/internal/chat"
 	"github.com/local/picobot/internal/cron"
 )
 
@@ -70,6 +71,14 @@ func (t *CronTool) SetContext(channel, chatID string) {
 func (t *CronTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	action, _ := args["action"].(string)
 
+	channel, chatID := chat.FromContext(ctx)
+	if channel == "" {
+		channel = t.channel
+	}
+	if chatID == "" {
+		chatID = t.chatID
+	}
+
 	switch action {
 	case "add":
 		name, _ := args["name"].(string)
@@ -109,12 +118,12 @@ func (t *CronTool) Execute(ctx context.Context, args map[string]interface{}) (st
 			if interval < 2*time.Minute {
 				return "", fmt.Errorf("cron add: recurring interval must be at least 2m (got %v)", interval)
 			}
-			id := t.scheduler.AddRecurring(name, message, interval, t.channel, t.chatID)
+			id := t.scheduler.AddRecurring(name, message, interval, channel, chatID)
 			return fmt.Sprintf("Scheduled recurring job %q (id: %s). Will fire in %v, then repeat every %v.", name, id, delay, interval), nil
 		}
 
 		// One-time job
-		id := t.scheduler.Add(name, message, delay, t.channel, t.chatID)
+		id := t.scheduler.Add(name, message, delay, channel, chatID)
 		return fmt.Sprintf("Scheduled job %q (id: %s). Will fire in %v.", name, id, delay), nil
 
 	case "list":

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/local/picobot/internal/chat"
 )
 
 // FilesystemTool provides read/write/list operations within the filesystem.
@@ -12,12 +15,13 @@ import (
 // which provides kernel-enforced path containment via openat() syscalls.
 // This prevents symlink escapes, TOCTOU races, and path traversal attacks.
 type FilesystemTool struct {
+	hub  *chat.Hub
 	root *os.Root
 }
 
 // NewFilesystemTool opens an os.Root anchored at workspaceDir.
 // The caller should call Close() when done (e.g. via defer).
-func NewFilesystemTool(workspaceDir string) (*FilesystemTool, error) {
+func NewFilesystemTool(hub *chat.Hub, workspaceDir string) (*FilesystemTool, error) {
 	absDir, err := filepath.Abs(workspaceDir)
 	if err != nil {
 		return nil, fmt.Errorf("filesystem: resolve workspace path: %w", err)
@@ -26,10 +30,11 @@ func NewFilesystemTool(workspaceDir string) (*FilesystemTool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("filesystem: open workspace root: %w", err)
 	}
-	return &FilesystemTool{root: root}, nil
+	return &FilesystemTool{hub: hub, root: root}, nil
 }
 
 // Close releases the underlying os.Root file descriptor.
+// (rest of struct methods unchanged)
 func (t *FilesystemTool) Close() error {
 	return t.root.Close()
 }
@@ -97,6 +102,50 @@ func (t *FilesystemTool) Execute(ctx context.Context, args map[string]interface{
 			content = v
 		default:
 			return "", fmt.Errorf("filesystem: 'content' must be a string")
+		}
+
+		isPlanFile := strings.Contains(strings.ToLower(pathStr), "plan.md")
+		channel, chatID := chat.FromContext(ctx)
+		requireApproval := isPlanFile && channel != "cli" && channel != "" && chatID != "" && t.hub != nil && channel != "heartbeat" && channel != "cron"
+
+		if requireApproval {
+			msgContent := fmt.Sprintf("📝 **Proposed Plan Update**\nPicobot wants to update the plan (`PLAN.md`).\n\n**Proposed Plan:**\n```markdown\n%s\n```\n\nChoose an action below, or reply/comment with your feedback to modify the plan.", content)
+			out := chat.Outbound{
+				Channel: channel,
+				ChatID:  chatID,
+				Content: msgContent,
+				Metadata: map[string]interface{}{
+					"telegram_reply_markup": `{"inline_keyboard": [[{"text": "Approve Plan ✅", "callback_data": "yes"}, {"text": "Reject Plan ❌", "callback_data": "no"}]]}`,
+				},
+			}
+			select {
+			case t.hub.Out <- out:
+			default:
+				return "", fmt.Errorf("filesystem: outbound queue full, cannot send plan approval request")
+			}
+
+			// Wait for user response
+			approvalChan := make(chan string, 1)
+			key := channel + ":" + chatID
+			chat.RegisterApproval(key, approvalChan)
+			defer chat.UnregisterApproval(key)
+
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case resp := <-approvalChan:
+				respClean := strings.TrimSpace(resp)
+				respCleanLower := strings.ToLower(respClean)
+				if respCleanLower == "yes" || respCleanLower == "approve" || respCleanLower == "y" {
+					// Approved: execute the write
+					break
+				}
+				if respCleanLower == "no" || respCleanLower == "deny" || respCleanLower == "reject" || respCleanLower == "n" {
+					return "Plan rejected by user.", nil
+				}
+				// Otherwise, user provided comment/feedback
+				return fmt.Sprintf("Plan rejected/modified by user with comment: %q. Please rewrite PLAN.md to incorporate this feedback and propose the updated plan.", respClean), nil
+			}
 		}
 		// Create parent directories if needed
 		dir := filepath.Dir(pathStr)

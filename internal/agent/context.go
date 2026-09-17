@@ -59,6 +59,20 @@ func (cb *ContextBuilder) BuildMessages(history []string, currentMessage string,
 	// Memory tool instruction
 	sysParts = append(sysParts, "If you decide something should be remembered, call the tool 'write_memory' with JSON arguments: {\"target\": \"today\"|\"long\", \"content\": \"...\", \"append\": true|false}. Use a tool call rather than plain chat text when writing memory.")
 
+	// Structured Planning and Context Management instructions
+	sysParts = append(sysParts, `## STRUCTURED PLANNING & GOAL TRACKING
+1. For any multi-step, complex, or open-ended request, you MUST start by creating a 'PLAN.md' file in the workspace.
+2. The 'PLAN.md' file must contain:
+   - **Objective**: Clear description of the final goal.
+   - **Current Status**: Active step being executed.
+   - **Steps**: List of sequential tasks to perform (e.g., Fetch data, Parse/Extract, Create HTML layout, Generate PDF, Send PDF). Mark each task as [ ] Pending, [/] In Progress, or [x] Completed.
+   - **Findings**: Extracted data, links, or notes discovered along the way.
+3. You MUST update this 'PLAN.md' file at each stage of your execution to track your progress.
+4. To stay within token and context window limits:
+   - If a webpage or command output is expected to be large (e.g., > 10KB), save the raw output directly to a file (e.g., 'downloaded_page.html') instead of displaying it in the chat.
+   - Write short Go or Python scripts to parse the local file, extract the exact data needed, and print only the final clean output.
+   - Keep chat history clean and concise. Focus your LLM outputs on updating the plan and invoking the next tool.`)
+
 	// Skills context
 	loadedSkills, err := cb.skillsLoader.LoadAll()
 	if err != nil {

@@ -57,3 +57,93 @@ func TestOpenAIFunctionCallParsing(t *testing.T) {
 		t.Fatalf("unexpected argument content: %v", resp.ToolCalls[0].Arguments)
 	}
 }
+
+func TestOpenAIRetryOnTransientError(t *testing.T) {
+	attempts := 0
+	h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts < 2 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Write([]byte(`{"error": "rate limit exceeded"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{
+		  "choices": [
+		    {
+		      "message": {
+		        "role": "assistant",
+		        "content": "success after retry"
+		      }
+		    }
+		  ]
+		}`))
+	}))
+	defer h.Close()
+
+	p := NewOpenAIProvider("test-key", h.URL, 60, 0)
+	p.RetryBackoff = 1 * time.Millisecond
+	p.MaxRetries = 3
+
+	ctx := context.Background()
+	msgs := []Message{{Role: "user", Content: "hello"}}
+	resp, err := p.Chat(ctx, msgs, nil, "")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("expected exactly 2 attempts, got %d", attempts)
+	}
+	if resp.Content != "success after retry" {
+		t.Fatalf("expected content 'success after retry', got '%s'", resp.Content)
+	}
+}
+
+func TestOpenAIExhaustRetries(t *testing.T) {
+	attempts := 0
+	h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"error": "internal error"}`))
+	}))
+	defer h.Close()
+
+	p := NewOpenAIProvider("test-key", h.URL, 60, 0)
+	p.RetryBackoff = 1 * time.Millisecond
+	p.MaxRetries = 3
+
+	ctx := context.Background()
+	msgs := []Message{{Role: "user", Content: "hello"}}
+	_, err := p.Chat(ctx, msgs, nil, "")
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if attempts != 3 {
+		t.Fatalf("expected exactly 3 attempts, got %d", attempts)
+	}
+}
+
+func TestOpenAINonRetryableError(t *testing.T) {
+	attempts := 0
+	h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error": "unauthorized"}`))
+	}))
+	defer h.Close()
+
+	p := NewOpenAIProvider("test-key", h.URL, 60, 0)
+	p.RetryBackoff = 1 * time.Millisecond
+	p.MaxRetries = 3
+
+	ctx := context.Background()
+	msgs := []Message{{Role: "user", Content: "hello"}}
+	_, err := p.Chat(ctx, msgs, nil, "")
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if attempts != 1 {
+		t.Fatalf("expected exactly 1 attempt (no retries for 401), got %d", attempts)
+	}
+}

@@ -14,10 +14,12 @@ import (
 
 // OpenAIProvider calls an OpenAI-compatible API (OpenAI, OpenRouter, or similar).
 type OpenAIProvider struct {
-	APIKey    string
-	APIBase   string // e.g. https://api.openai.com/v1 or https://openrouter.ai/api/v1
-	MaxTokens int    // 0 means "let the API decide"
-	Client    *http.Client
+	APIKey       string
+	APIBase      string // e.g. https://api.openai.com/v1 or https://openrouter.ai/api/v1
+	MaxTokens    int    // 0 means "let the API decide"
+	Client       *http.Client
+	RetryBackoff time.Duration
+	MaxRetries   int
 }
 
 func NewOpenAIProvider(apiKey, apiBase string, timeoutSecs, maxTokens int) *OpenAIProvider {
@@ -34,6 +36,8 @@ func NewOpenAIProvider(apiKey, apiBase string, timeoutSecs, maxTokens int) *Open
 		Client: &http.Client{
 			Timeout: time.Duration(timeoutSecs) * time.Second,
 		},
+		RetryBackoff: 2 * time.Second,
+		MaxRetries:   3,
 	}
 }
 
@@ -144,31 +148,85 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message, tools []T
 	}
 
 	url := fmt.Sprintf("%s/chat/completions", p.APIBase)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, strings.NewReader(string(b)))
-	if err != nil {
-		return LLMResponse{}, err
+
+	var resp *http.Response
+	var lastErr error
+	maxRetries := p.MaxRetries
+	if maxRetries <= 0 {
+		maxRetries = 3
 	}
-	req.Header.Set("Content-Type", "application/json")
-	if p.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+p.APIKey)
+	backoff := p.RetryBackoff
+	if backoff <= 0 {
+		backoff = 2 * time.Second
 	}
 
-	resp, err := p.Client.Do(req)
-	if err != nil {
-		return LLMResponse{}, err
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return LLMResponse{}, err
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "POST", url, strings.NewReader(string(b)))
+		if err != nil {
+			return LLMResponse{}, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if p.APIKey != "" {
+			req.Header.Set("Authorization", "Bearer "+p.APIKey)
+		}
+
+		resp, err = p.Client.Do(req)
+
+		shouldRetry := false
+		if err != nil {
+			if ctx.Err() != nil {
+				return LLMResponse{}, err
+			}
+			shouldRetry = true
+			lastErr = err
+			log.Printf("OpenAI API attempt %d failed: %v. Retrying in %v...", attempt, err, backoff)
+		} else {
+			if resp.StatusCode == 429 || (resp.StatusCode >= 500 && resp.StatusCode <= 504) {
+				shouldRetry = true
+				bodyBytes, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				bodyStr := strings.TrimSpace(string(bodyBytes))
+				lastErr = fmt.Errorf("OpenAI API error: %s - %s", resp.Status, bodyStr)
+				log.Printf("OpenAI API attempt %d failed with status %d: %q. Retrying in %v...", attempt, resp.StatusCode, bodyStr, backoff)
+			} else if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				// Non-retryable status code (e.g. 400, 401, 403, 404)
+				bodyBytes, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				bodyStr := strings.TrimSpace(string(bodyBytes))
+				log.Printf("OpenAI API non-2xx (non-retryable): %s body=%q", resp.Status, bodyStr)
+				if bodyStr == "" {
+					return LLMResponse{}, fmt.Errorf("OpenAI API error: %s", resp.Status)
+				}
+				return LLMResponse{}, fmt.Errorf("OpenAI API error: %s - %s", resp.Status, bodyStr)
+			}
+		}
+
+		if shouldRetry {
+			if attempt < maxRetries {
+				select {
+				case <-ctx.Done():
+					return LLMResponse{}, ctx.Err()
+				case <-time.After(backoff):
+					backoff *= 2
+					continue
+				}
+			} else {
+				// exhausted retries
+				if lastErr != nil {
+					return LLMResponse{}, fmt.Errorf("OpenAI API exhausted %d retries. Last error: %w", maxRetries, lastErr)
+				}
+				return LLMResponse{}, fmt.Errorf("OpenAI API exhausted %d retries", maxRetries)
+			}
+		}
+
+		// If success (2xx), break retry loop
+		break
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// attempt to read response body for more details (do not expose API key)
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		body := strings.TrimSpace(string(bodyBytes))
-		log.Printf("OpenAI API non-2xx: %s body=%q", resp.Status, body)
-		if body == "" {
-			return LLMResponse{}, fmt.Errorf("OpenAI API error: %s", resp.Status)
-		}
-		return LLMResponse{}, fmt.Errorf("OpenAI API error: %s - %s", resp.Status, body)
-	}
 
 	var out chatResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
