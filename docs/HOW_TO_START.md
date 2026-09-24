@@ -5,6 +5,7 @@
 - **Go 1.26+** installed ([download](https://go.dev/dl/))
 - An **API key** for an OpenAI-compatible service:
   - [OpenRouter](https://openrouter.ai/keys) (recommended, supports many models)
+  - [Requesty](https://app.requesty.ai/api-keys) (OpenAI-compatible router, base URL `https://router.requesty.ai/v1`)
   - [OpenAI](https://platform.openai.com/api-keys)
   - Or use a local [Ollama](https://ollama.ai) instance (no key needed)
 
@@ -95,7 +96,7 @@ nano ~/.picobot/config.json
 
 Change `"sk-or-v1-REPLACE_ME"` to your actual API key.
 
-Also set your preferred model (e.g., `google/gemini-2.5-flash` for OpenRouter, `gpt-4o-mini` for OpenAI):
+Also set your preferred model (e.g., `google/gemini-2.5-flash` for OpenRouter, `openai/gpt-4o-mini` for Requesty, `gpt-4o-mini` for OpenAI):
 
 ```json
 {

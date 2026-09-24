@@ -50,7 +50,7 @@ docker run -d \
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | Yes | — | OpenAI-compatible API key (OpenRouter, OpenAI, etc.) |
+| `OPENAI_API_KEY` | Yes | — | OpenAI-compatible API key (OpenRouter, Requesty, OpenAI, etc.) |
 | `OPENAI_API_BASE` | No | `https://openrouter.ai/api/v1` | OpenAI-compatible API base URL |
 | `PICOBOT_MODEL` | No | `google/gemini-2.5-flash` | LLM model to use |
 | `PICOBOT_MAX_TOKENS` | No | `8192` | Maximum tokens for LLM responses |

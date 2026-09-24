@@ -224,7 +224,7 @@ Picobot uses a single JSON config at `~/.picobot/config.json`:
 }
 ```
 
-Supports any **OpenAI-compatible API** (OpenAI, OpenRouter, Ollama, etc.). See [CONFIG.md](docs/CONFIG.md) for more details.
+Supports any **OpenAI-compatible API** (OpenAI, OpenRouter, Requesty, Ollama, etc.). See [CONFIG.md](docs/CONFIG.md) for more details.
 
 ## CLI Reference
 
@@ -262,7 +262,7 @@ Works on any Linux with 256MB RAM. No runtime dependencies. Just copy the binary
 |-------|------------|
 | Language | [Go](https://go.dev/) 1.26+ |
 | CLI framework | [Cobra](https://github.com/spf13/cobra) |
-| LLM providers | OpenAI-compatible API (OpenAI, OpenRouter, Ollama, etc.) |
+| LLM providers | OpenAI-compatible API (OpenAI, OpenRouter, Requesty, Ollama, etc.) |
 | Telegram | Raw Bot API |
 | Discord | [discordgo](https://github.com/bwmarrin/discordgo) library |
 | WhatsApp | [whatsmeow](https://github.com/tulir/whatsmeow) and [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) |

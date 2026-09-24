@@ -113,12 +113,12 @@ LLM provider configuration. Picobot uses an OpenAI-compatible API provider.
 
 ### providers.openai
 
-Connect to any OpenAI-compatible API service (OpenAI, OpenRouter, Ollama, etc.).
+Connect to any OpenAI-compatible API service (OpenAI, OpenRouter, Requesty, Ollama, etc.).
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `apiKey` | string | *(required)* | Your API key. Get OpenRouter keys at https://openrouter.ai/keys |
-| `apiBase` | string | `https://openrouter.ai/api/v1` | API base URL. Use `https://api.openai.com/v1` for OpenAI, `http://localhost:11434/v1` for local Ollama, or any compatible endpoint. |
+| `apiKey` | string | *(required)* | Your API key. Get OpenRouter keys at https://openrouter.ai/keys or Requesty keys at https://app.requesty.ai/api-keys |
+| `apiBase` | string | `https://openrouter.ai/api/v1` | API base URL. Use `https://api.openai.com/v1` for OpenAI, `https://router.requesty.ai/v1` for Requesty (`https://router.eu.requesty.ai/v1` for EU), `http://localhost:11434/v1` for local Ollama, or any compatible endpoint. |
 
 ```json
 {
@@ -140,6 +140,16 @@ Connect to any OpenAI-compatible API service (OpenAI, OpenRouter, Ollama, etc.).
     "openai": {
       "apiKey": "sk-proj-...",
       "apiBase": "https://api.openai.com/v1"
+    }
+  }
+}
+
+// Requesty (models use vendor/model ids, e.g. openai/gpt-4o-mini)
+{
+  "providers": {
+    "openai": {
+      "apiKey": "rqsty-...",
+      "apiBase": "https://router.requesty.ai/v1"
     }
   }
 }
