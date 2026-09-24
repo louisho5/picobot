@@ -6,7 +6,7 @@ services:
     container_name: picobot
     restart: unless-stopped
     environment:
-      # Required: OpenAI-compatible API key (works with OpenRouter, OpenAI, etc.)
+      # Required: OpenAI-compatible API key (works with OpenRouter, Requesty, OpenAI, etc.)
       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-or-v1-REPLACE_ME}
       # Optional: OpenAI-compatible API base URL
       - OPENAI_API_BASE=${OPENAI_API_BASE:-https://openrouter.ai/api/v1}

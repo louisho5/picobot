@@ -23,7 +23,7 @@ internal/
   heartbeat/          Periodic task checker
   mcp/                MCP client (stdio + HTTP transports)
   memory/             Memory read/write/rank
-  providers/          OpenAI-compatible provider (OpenAI, OpenRouter, Ollama, etc.)
+  providers/          OpenAI-compatible provider (OpenAI, OpenRouter, Requesty, Ollama, etc.)
   session/            Session manager
 docker/               Dockerfile, compose, entrypoint
 ```
@@ -255,7 +255,7 @@ These environment variables configure the Docker container:
 
 | Variable | Description | Required |
 |---|---|---|
-| `OPENAI_API_KEY` | OpenAI-compatible API key (OpenRouter, OpenAI, etc.) | Yes |
+| `OPENAI_API_KEY` | OpenAI-compatible API key (OpenRouter, Requesty, OpenAI, etc.) | Yes |
 | `OPENAI_API_BASE` | OpenAI-compatible API base URL | No |
 | `PICOBOT_MODEL` | LLM model to use (e.g. `google/gemini-2.5-flash`) | No |
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot API token | No |
