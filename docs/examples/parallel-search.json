@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "parallel": {
+      "url": "https://search.parallel.ai/mcp",
+      "headers": {
+        "User-Agent": "picobot (https://github.com/louisho5/picobot)"
+      }
+    }
+  }
+}

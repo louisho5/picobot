@@ -231,6 +231,33 @@ For MCP servers accessible over HTTP (Streamable HTTP or SSE). Supports bearer t
 }
 ```
 
+### Example: keyless Parallel web search and fetch
+
+[Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) adds web search and page extraction over the existing HTTP transport. The anonymous endpoint is free for light use, with lower rate limits; no Parallel API key or Authorization header is needed.
+
+Merge the `parallel` entry from [parallel-search.json](examples/parallel-search.json) into `mcpServers` in `~/.picobot/config.json`, keeping your other servers and provider settings:
+
+```json
+{
+  "mcpServers": {
+    "parallel": {
+      "url": "https://search.parallel.ai/mcp",
+      "headers": {
+        "User-Agent": "picobot (https://github.com/louisho5/picobot)"
+      }
+    }
+  }
+}
+```
+
+Restart Picobot to discover `mcp_parallel_web_search` and `mcp_parallel_web_fetch`. With a tool-calling model configured, try:
+
+```sh
+picobot agent -m "Use mcp_parallel_web_search to find the Go net/http documentation, then use mcp_parallel_web_fetch to read it and summarize how to set a client timeout."
+```
+
+The model receives each tool's input schema from the server and supplies the search objective and queries or the URLs to fetch. This adds optional tools; the built-in `web_search`, existing MCP servers, and LLM provider remain unchanged. If the tools are missing, check the startup log for a connection error. If a call is rate limited, wait before retrying.
+
 ### MCPServerConfig fields
 
 | Field | Type | Description |
