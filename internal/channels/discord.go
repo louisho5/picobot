@@ -20,10 +20,15 @@ type discordSender interface {
 }
 
 // StartDiscord starts a Discord bot using the discordgo library.
-// allowFrom restricts which Discord user IDs may send messages; empty means allow all.
+// allowFrom restricts which Discord user IDs may send messages.
+// Empty allowFrom is rejected by default; set PICOBOT_ALLOW_PUBLIC_CHANNELS=1
+// to opt into open mode.
 func StartDiscord(ctx context.Context, hub *chat.Hub, token string, allowFrom []string) error {
 	if token == "" {
 		return fmt.Errorf("discord token not provided")
+	}
+	if len(allowFrom) == 0 && !allowPublicChannels() {
+		return fmt.Errorf("discord allowFrom is empty; configure allowFrom or set %s=1 to opt into open mode", allowPublicChannelsEnv)
 	}
 
 	session, err := discordgo.New("Bot " + token)
