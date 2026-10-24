@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/local/picobot/internal/agent/memory"
+	"github.com/local/picobot/internal/session"
 )
 
 func TestBuildMessagesIncludesMemories(t *testing.T) {
 	cb := NewContextBuilder(".", memory.NewSimpleRanker(), 5)
-	history := []string{"user: hi"}
+	history := []session.Message{{Role: "user", Content: "hi"}}
 	mems := []memory.MemoryItem{{Kind: "short", Text: "remember this"}, {Kind: "long", Text: "big fact"}}
 	memCtx := "Long-term memory: important fact"
 	msgs := cb.BuildMessages(history, "hello", "telegram", "123", memCtx, mems)

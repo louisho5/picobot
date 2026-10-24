@@ -67,6 +67,7 @@ type AgentLoop struct {
 	mcpClients         []*mcp.Client
 	enableToolActivity bool
 	timeout            time.Duration
+	historyChars       int
 }
 
 // NewAgentLoop creates a new AgentLoop with the given provider.
@@ -102,6 +103,9 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 	}
 
 	sm := session.NewSessionManager(workspace)
+	// Persisted history is loaded on first use, after SetHistoryLimits has
+	// applied the configured retention.
+	sm.SetRetention(config.HistoryRetention(0))
 	ctx := NewContextBuilder(workspace, memory.NewLLMRanker(provider, model), 5)
 	mem := memory.NewMemoryStoreWithWorkspace(workspace, 100)
 	// register memory tools (all share the same store instance)
@@ -143,7 +147,7 @@ func NewAgentLoop(b *chat.Hub, provider providers.LLMProvider, model string, max
 		log.Printf("MCP server %q: registered %d tools", name, len(client.Tools()))
 	}
 
-	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations, mcpClients: mcpClients, enableToolActivity: true, timeout: config.AgentTimeout(0)}
+	return &AgentLoop{hub: b, provider: provider, tools: reg, sessions: sm, context: ctx, memory: mem, model: model, maxIterations: maxIterations, mcpClients: mcpClients, enableToolActivity: true, timeout: config.AgentTimeout(0), historyChars: config.HistoryContextChars(0)}
 }
 
 // SetToolActivityIndicator controls whether the feedback of tool progress
@@ -158,6 +162,14 @@ func (a *AgentLoop) SetAgentTimeout(d time.Duration) {
 		d = config.AgentTimeout(0)
 	}
 	a.timeout = d
+}
+
+// SetHistoryLimits sets how many days of conversation history are kept on
+// disk and how many characters of it are sent to the LLM per turn.
+// Non-positive values fall back to the defaults.
+func (a *AgentLoop) SetHistoryLimits(retentionDays, contextChars int) {
+	a.sessions.SetRetention(config.HistoryRetention(retentionDays))
+	a.historyChars = config.HistoryContextChars(contextChars)
 }
 
 // SetCommandDeny applies extra exec denials from config. Built-in dangerous
@@ -209,6 +221,16 @@ func (a *AgentLoop) Run(ctx context.Context) {
 // handleInbound processes a single inbound message using ctx as the deadline
 // for LLM calls and tool execution.
 func (a *AgentLoop) handleInbound(ctx context.Context, msg chat.Inbound) {
+	if reply, ok := a.handleCommand(msg); ok {
+		out := chat.Outbound{Channel: msg.Channel, ChatID: msg.ChatID, Content: reply}
+		select {
+		case a.hub.Out <- out:
+		default:
+			log.Println("Outbound channel full, dropping message")
+		}
+		return
+	}
+
 	// Quick heuristic: if user asks the agent to remember something explicitly,
 	// store it in today's note and reply immediately without calling the LLM.
 	trimmed := strings.TrimSpace(msg.Content)
@@ -218,20 +240,22 @@ func (a *AgentLoop) handleInbound(ctx context.Context, msg chat.Inbound) {
 		if err := a.memory.AppendToday(note); err != nil {
 			log.Printf("error appending to memory: %v", err)
 		}
-		out := chat.Outbound{Channel: msg.Channel, ChatID: msg.ChatID, Content: "OK, I've remembered that."}
-		select {
-		case a.hub.Out <- out:
-		default:
-			log.Println("Outbound channel full, dropping message")
-		}
 		// Only save session for interactive channels, not system triggers.
+		// Save before replying, as the main path does, so the exchange is
+		// persisted by the time the user sees the reply.
 		if !isSystemChannel(msg.Channel) {
-			sess := a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
+			sess := a.sessions.Active(msg.Channel + ":" + msg.ChatID)
 			sess.AddMessage("user", msg.Content)
 			sess.AddMessage("assistant", "OK, I've remembered that.")
 			if err := a.sessions.Save(sess); err != nil {
 				log.Printf("error saving session: %v", err)
 			}
+		}
+		out := chat.Outbound{Channel: msg.Channel, ChatID: msg.ChatID, Content: "OK, I've remembered that."}
+		select {
+		case a.hub.Out <- out:
+		default:
+			log.Println("Outbound channel full, dropping message")
 		}
 		return
 	}
@@ -255,12 +279,12 @@ func (a *AgentLoop) handleInbound(ctx context.Context, msg chat.Inbound) {
 	if isSystemChannel(msg.Channel) {
 		sess = &session.Session{Key: msg.Channel + ":" + msg.ChatID}
 	} else {
-		sess = a.sessions.GetOrCreate(msg.Channel + ":" + msg.ChatID)
+		sess = a.sessions.Active(msg.Channel + ":" + msg.ChatID)
 	}
 	// get file-backed memory context (long-term + today)
 	memCtx, _ := a.memory.GetMemoryContext()
 	memories := a.memory.Recent(5)
-	messages := a.context.BuildMessages(sess.GetHistory(), msg.Content, msg.Channel, msg.ChatID, memCtx, memories)
+	messages := a.context.BuildMessages(sess.Recent(a.historyChars), msg.Content, msg.Channel, msg.ChatID, memCtx, memories)
 
 	iteration := 0
 	finalContent := ""
@@ -361,10 +385,29 @@ func (a *AgentLoop) ProcessDirect(content string, timeout time.Duration) (string
 		}
 	}
 
+	// CLI queries share one persistent session so consecutive invocations
+	// keep conversational context.
+	sess := a.sessions.Active("cli:direct")
+
 	// Build full context (bootstrap files, skills, memory) just like the main loop
 	memCtx, _ := a.memory.GetMemoryContext()
 	memories := a.memory.Recent(5)
-	messages := a.context.BuildMessages(nil, content, "cli", "direct", memCtx, memories)
+	messages := a.context.BuildMessages(sess.Recent(a.historyChars), content, "cli", "direct", memCtx, memories)
+
+	resp, err := a.runDirect(ctx, messages)
+	if err != nil {
+		return "", err
+	}
+	sess.AddMessage("user", content)
+	sess.AddMessage("assistant", resp)
+	if err := a.sessions.Save(sess); err != nil {
+		log.Printf("error saving session: %v", err)
+	}
+	return resp, nil
+}
+
+// runDirect runs the tool-calling loop for ProcessDirect and returns the final reply.
+func (a *AgentLoop) runDirect(ctx context.Context, messages []providers.Message) (string, error) {
 
 	// Support tool calling iterations (similar to main loop)
 	var lastToolResult string

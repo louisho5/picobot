@@ -157,6 +157,7 @@ func NewRootCmd() *cobra.Command {
 				ag.SetToolActivityIndicator(false)
 			}
 			ag.SetCommandDeny(cfg.Agents.Defaults.Commands.Deny)
+			ag.SetHistoryLimits(cfg.Agents.Defaults.HistoryRetentionDays, cfg.Agents.Defaults.HistoryContextChars)
 
 			agentTimeout := config.AgentTimeout(cfg.Agents.Defaults.AgentTimeoutS)
 			resp, err := ag.ProcessDirect(msg, agentTimeout)
@@ -211,6 +212,7 @@ func NewRootCmd() *cobra.Command {
 			}
 			ag.SetAgentTimeout(config.AgentTimeout(cfg.Agents.Defaults.AgentTimeoutS))
 			ag.SetCommandDeny(cfg.Agents.Defaults.Commands.Deny)
+			ag.SetHistoryLimits(cfg.Agents.Defaults.HistoryRetentionDays, cfg.Agents.Defaults.HistoryContextChars)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 

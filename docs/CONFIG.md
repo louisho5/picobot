@@ -72,6 +72,8 @@ Agent behavior settings.
 | `heartbeatIntervalS` | int | `60` | How often (in seconds) the heartbeat checks `HEARTBEAT.md` for periodic tasks. Only used in gateway mode. |
 | `requestTimeoutS` | int | `60` | HTTP timeout in seconds for each LLM API request. Increase for slow models or poor network conditions. |
 | `agentTimeoutS` | int | `300` | Wall-clock timeout in seconds for a single agent turn (`picobot agent` and gateway channel messages, including Telegram, Discord, Slack, WhatsApp, heartbeat, and cron). `0` or omitted falls back to 300. Distinct from `requestTimeoutS`, which is the per-HTTP LLM timeout. |
+| `historyRetentionDays` | int | `30` | Days of per-chat conversation history kept in `<workspace>/sessions/`. Older messages are pruned. History survives restarts. `0` or omitted falls back to 30. Heartbeat and cron runs never keep history. |
+| `historyContextChars` | int | `100000` | Maximum characters of stored history sent to the LLM with each message (roughly 4 characters per token); the newest messages are kept. Lower it for small-context models, raise it for long-context ones. `0` or omitted falls back to 100000. |
 | `enableToolActivityIndicator` | bool | `true` | When `true`, sends interim `🤖 Running` / `📢 done` messages to the chat channel as tools are called. Set to `false` for IoT or headless deployments where only the final response should be delivered. |
 | `commands.deny` | string[] | `[]` | Extra program names the `exec` tool must not run. Merged with the built-in list (`rm`, `sudo`, `dd`, `mkfs`, `shutdown`, `reboot`). Empty means no extra blocks. Matching is case-insensitive on the binary base name. |
 
@@ -410,6 +412,8 @@ When running with Docker, you can override config values using environment varia
 | `PICOBOT_MAX_TOKENS` | `agents.defaults.maxTokens` | Maximum tokens for LLM responses |
 | `PICOBOT_MAX_TOOL_ITERATIONS` | `agents.defaults.maxToolIterations` | Maximum tool iterations per request |
 | `PICOBOT_AGENT_TIMEOUT_S` | `agents.defaults.agentTimeoutS` | Wall-clock timeout in seconds for a single agent turn |
+| `PICOBOT_HISTORY_RETENTION_DAYS` | `agents.defaults.historyRetentionDays` | Days of conversation history kept on disk |
+| `PICOBOT_HISTORY_CONTEXT_CHARS` | `agents.defaults.historyContextChars` | Max characters of history sent to the LLM per message |
 | `TELEGRAM_BOT_TOKEN` | `channels.telegram.token` | Telegram bot token (also enables the channel) |
 | `TELEGRAM_ALLOW_FROM` | `channels.telegram.allowFrom` | Comma-separated allowed Telegram user IDs |
 | `DISCORD_BOT_TOKEN` | `channels.discord.token` | Discord bot token (also enables the channel) |

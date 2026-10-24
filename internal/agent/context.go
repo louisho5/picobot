@@ -10,6 +10,7 @@ import (
 	"github.com/local/picobot/internal/agent/memory"
 	"github.com/local/picobot/internal/agent/skills"
 	"github.com/local/picobot/internal/providers"
+	"github.com/local/picobot/internal/session"
 )
 
 // ContextBuilder builds messages for the LLM from session history and current message.
@@ -29,7 +30,7 @@ func NewContextBuilder(workspace string, r memory.Ranker, topK int) *ContextBuil
 	}
 }
 
-func (cb *ContextBuilder) BuildMessages(history []string, currentMessage string, channel, chatID string, memoryContext string, memories []memory.MemoryItem) []providers.Message {
+func (cb *ContextBuilder) BuildMessages(history []session.Message, currentMessage string, channel, chatID string, memoryContext string, memories []memory.MemoryItem) []providers.Message {
 	msgs := make([]providers.Message, 0, len(history)+2)
 
 	// Combine all system instructions into one message at position 0 to avoid errors in strict chat templates (e.g. llama.cpp)
@@ -96,21 +97,11 @@ func (cb *ContextBuilder) BuildMessages(history []string, currentMessage string,
 	msgs = append(msgs, providers.Message{Role: "system", Content: strings.Join(sysParts, "\n\n")})
 
 	// Replay history, preserving each message's original role (user/assistant).
-	// Items are stored in "role: content" format by session.AddMessage.
 	for _, h := range history {
-		if len(h) == 0 {
+		if h.Content == "" {
 			continue
 		}
-		role := "user"
-		content := h
-		if idx := strings.Index(h, ": "); idx > 0 {
-			r := h[:idx]
-			if r == "user" || r == "assistant" {
-				role = r
-				content = h[idx+2:]
-			}
-		}
-		msgs = append(msgs, providers.Message{Role: role, Content: content})
+		msgs = append(msgs, providers.Message{Role: h.Role, Content: h.Content})
 	}
 
 	// Current user message

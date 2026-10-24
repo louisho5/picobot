@@ -51,4 +51,14 @@ func applyEnvOverrides(cfg *Config) {
 			cfg.Agents.Defaults.AgentTimeoutS = n
 		}
 	}
+	if v := os.Getenv("PICOBOT_HISTORY_RETENTION_DAYS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.Agents.Defaults.HistoryRetentionDays = n
+		}
+	}
+	if v := os.Getenv("PICOBOT_HISTORY_CONTEXT_CHARS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.Agents.Defaults.HistoryContextChars = n
+		}
+	}
 }

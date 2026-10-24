@@ -41,6 +41,10 @@ func StartTelegramWithBase(ctx context.Context, hub *chat.Hub, token, base strin
 
 	client := &http.Client{Timeout: 45 * time.Second}
 
+	// Advertise conversation commands in Telegram's "/" menu. Best effort:
+	// commands still work when typed even if registration fails.
+	go registerTelegramCommands(client, base)
+
 	// inbound polling goroutine
 	go func() {
 		offset := int64(0)
@@ -144,4 +148,35 @@ func StartTelegramWithBase(ctx context.Context, hub *chat.Hub, token, base strin
 	}()
 
 	return nil
+}
+
+// registerTelegramCommands publishes chat.Commands via setMyCommands.
+func registerTelegramCommands(client *http.Client, base string) {
+	type botCommand struct {
+		Command     string `json:"command"`
+		Description string `json:"description"`
+	}
+	cmds := make([]botCommand, 0, len(chat.Commands))
+	for _, c := range chat.Commands {
+		cmds = append(cmds, botCommand{Command: c.Name, Description: c.Description})
+	}
+	b, err := json.Marshal(cmds)
+	if err != nil {
+		log.Printf("telegram: encoding commands: %v", err)
+		return
+	}
+	resp, err := client.PostForm(base+"/setMyCommands", url.Values{"commands": {string(b)}})
+	if err != nil {
+		log.Printf("telegram setMyCommands error: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	var r struct {
+		Ok          bool   `json:"ok"`
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal(body, &r); err != nil || !r.Ok {
+		log.Printf("telegram setMyCommands failed: %s", body)
+	}
 }

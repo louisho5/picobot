@@ -6,7 +6,7 @@ import (
 )
 
 func TestMemoryAddAndRecent(t *testing.T) {
-	s := NewMemoryStore(3)
+	s := NewMemoryStoreWithWorkspace(t.TempDir(), 3)
 	s.AddLong("L1")
 	s.AddShort("two")
 	s.AddShort("one")
@@ -21,7 +21,7 @@ func TestMemoryAddAndRecent(t *testing.T) {
 }
 
 func TestShortLimit(t *testing.T) {
-	s := NewMemoryStore(2)
+	s := NewMemoryStoreWithWorkspace(t.TempDir(), 2)
 	s.AddShort("c")
 	time.Sleep(5 * time.Millisecond)
 	s.AddShort("b")
@@ -38,7 +38,7 @@ func TestShortLimit(t *testing.T) {
 }
 
 func TestQueryByKeyword(t *testing.T) {
-	s := NewMemoryStore(10)
+	s := NewMemoryStoreWithWorkspace(t.TempDir(), 10)
 	s.AddLong("apple pie recipe")
 	s.AddShort("Remember the apple")
 

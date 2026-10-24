@@ -30,6 +30,8 @@ type AgentDefaults struct {
 	HeartbeatIntervalS          int            `json:"heartbeatIntervalS"`
 	RequestTimeoutS             int            `json:"requestTimeoutS"`
 	AgentTimeoutS               int            `json:"agentTimeoutS"`
+	HistoryRetentionDays        int            `json:"historyRetentionDays"`
+	HistoryContextChars         int            `json:"historyContextChars"`
 	EnableToolActivityIndicator *bool          `json:"enableToolActivityIndicator,omitempty"`
 	Commands                    CommandsConfig `json:"commands"`
 }

@@ -2,6 +2,7 @@ package channels
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -87,4 +88,49 @@ func TestStartTelegramWithBase(t *testing.T) {
 	cancel()
 	// give a small grace period
 	time.Sleep(50 * time.Millisecond)
+}
+
+func TestTelegramRegistersCommands(t *testing.T) {
+	registered := make(chan string, 1)
+	h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/setMyCommands"):
+			_ = r.ParseForm()
+			registered <- r.PostForm.Get("commands")
+			w.Write([]byte(`{"ok":true,"result":true}`))
+		case strings.HasSuffix(r.URL.Path, "/getUpdates"):
+			w.Write([]byte(`{"ok":true,"result":[]}`))
+		default:
+			w.Write([]byte(`{"ok":true,"result":{}}`))
+		}
+	}))
+	defer h.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := StartTelegramWithBase(ctx, chat.NewHub(10), "tok", h.URL+"/bottok", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case raw := <-registered:
+		var cmds []struct {
+			Command     string `json:"command"`
+			Description string `json:"description"`
+		}
+		if err := json.Unmarshal([]byte(raw), &cmds); err != nil {
+			t.Fatalf("invalid commands payload %q: %v", raw, err)
+		}
+		if len(cmds) != len(chat.Commands) {
+			t.Fatalf("expected %d commands, got %+v", len(chat.Commands), cmds)
+		}
+		for i, c := range chat.Commands {
+			if cmds[i].Command != c.Name || cmds[i].Description == "" {
+				t.Fatalf("unexpected command %d: %+v", i, cmds[i])
+			}
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for setMyCommands")
+	}
 }

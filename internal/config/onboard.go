@@ -22,6 +22,8 @@ func DefaultConfig() Config {
 			HeartbeatIntervalS:          60,
 			RequestTimeoutS:             60,
 			AgentTimeoutS:               DefaultAgentTimeoutS,
+			HistoryRetentionDays:        DefaultHistoryRetentionDays,
+			HistoryContextChars:         DefaultHistoryContextChars,
 			EnableToolActivityIndicator: boolPtr(true),
 			Commands:                    CommandsConfig{Deny: []string{}},
 		}},

@@ -43,3 +43,20 @@ func TestApplyEnvOverrides_AgentTimeoutS_IgnoresInvalid(t *testing.T) {
 		t.Errorf("AgentTimeoutS = %d, want unchanged %d", cfg.Agents.Defaults.AgentTimeoutS, want)
 	}
 }
+
+func TestHistoryDefaultsAndEnvOverrides(t *testing.T) {
+	if HistoryRetention(0) != time.Duration(DefaultHistoryRetentionDays)*24*time.Hour {
+		t.Errorf("unexpected default retention %s", HistoryRetention(0))
+	}
+	if HistoryContextChars(-1) != DefaultHistoryContextChars || HistoryContextChars(500) != 500 {
+		t.Errorf("unexpected HistoryContextChars fallback")
+	}
+
+	cfg := DefaultConfig()
+	t.Setenv("PICOBOT_HISTORY_RETENTION_DAYS", "21")
+	t.Setenv("PICOBOT_HISTORY_CONTEXT_CHARS", "50000")
+	applyEnvOverrides(&cfg)
+	if cfg.Agents.Defaults.HistoryRetentionDays != 21 || cfg.Agents.Defaults.HistoryContextChars != 50000 {
+		t.Errorf("env overrides not applied: %+v", cfg.Agents.Defaults)
+	}
+}

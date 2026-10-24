@@ -158,6 +158,15 @@ Chat with your agent from your phone. Set up in 2 minutes:
 
 See [HOW_TO_START.md](docs/HOW_TO_START.md) for a detailed BotFather walkthrough.
 
+Conversation history is saved per chat and survives restarts. Manage conversations with these commands (they also appear in Telegram's `/` menu):
+
+| Command | Description |
+|---------|-------------|
+| `/new [title]` | Start a new conversation; previous ones are kept |
+| `/chats` | List conversations, most recent first (up to 20) |
+| `/switch <number>` | Switch to a conversation by its number. Each conversation keeps its number permanently, and numbers are never reused. |
+| `/help` | Show available commands |
+
 ### Discord Integration
 
 Connect your agent to Discord servers:
